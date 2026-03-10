@@ -1,0 +1,39 @@
+/* index.css */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  background-color: #f8fafc;
+  color: #1e293b;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Ensures footer stays at the bottom */
+}
+
+/* Main Content Area - Fixed the gap issue here */
+.main-content-wrapper {
+  flex: 1; 
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Vertically centers content if space allows */
+  align-items: center;
+  padding: 10px 20px; /* Reduced vertical gap */
+}
+
+/* Professional Footer */
+footer {
+  background-color: #0f172a; 
+  color: #cbd5e1;
+  text-align: center;
+  padding: 20px 0;
+  font-size: 0.9rem;
+  border-top: 1px solid #1e293b;
+}

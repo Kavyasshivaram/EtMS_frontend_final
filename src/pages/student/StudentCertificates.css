@@ -1,0 +1,173 @@
+.certificate-page {
+  padding: 40px;
+  background: #f4f6f9;
+  min-height: 100vh;
+  font-family: "Segoe UI", sans-serif;
+  text-align: center;
+}
+
+/* ================= Completion Card ================= */
+
+.completion-card {
+  max-width: 500px;
+  margin: 120px auto;
+  padding: 40px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.completion-card h3 {
+  margin: 20px 0;
+  color: #1e3a8a;
+}
+
+.view-btn {
+  padding: 10px 20px;
+  background: #1e3a8a;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.view-btn:hover {
+  background: #162d6b;
+}
+
+/* ================= Modal ================= */
+
+.certificate-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.certificate-popup {
+  background: white;
+  width: 90%;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 12px;
+  padding: 30px;
+  position: relative;
+}
+
+/* Close Button */
+
+.close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* ================= Certificate ================= */
+
+.certificate-card {
+  width: 1000px;
+  height: 700px;
+  margin: auto;
+  background: white;
+  border: 10px solid #1e3a8a;
+  padding: 50px;
+  box-sizing: border-box;
+  position: relative;
+  text-align: center;
+}
+
+.watermark {
+  position: absolute;
+  font-size: 100px;
+  opacity: 0.05;
+  transform: rotate(-30deg);
+  top: 40%;
+  left: 20%;
+  font-weight: bold;
+}
+
+.certificate-header h2 {
+  font-size: 36px;
+}
+
+.certificate-body {
+  margin-top: 60px;
+}
+
+.certificate-body h1 {
+  font-size: 42px;
+  margin: 20px 0;
+}
+
+.certificate-body h3 {
+  font-size: 26px;
+  margin-top: 15px;
+}
+
+.certificate-details {
+  margin-top: 60px;
+  display: flex;
+  justify-content: space-around;
+}
+
+.certificate-details span {
+  display: block;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.certificate-details strong {
+  font-size: 16px;
+}
+
+.certificate-footer {
+  position: absolute;
+  bottom: 60px;
+  width: 80%;
+  left: 10%;
+  display: flex;
+  justify-content: space-between;
+}
+
+.line {
+  width: 200px;
+  border-top: 2px solid #000;
+  margin-bottom: 5px;
+}
+
+.signature span {
+  font-size: 14px;
+}
+
+/* Download Section */
+
+.download-section {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.download-btn {
+  padding: 10px 20px;
+  font-size: 16px;
+  background: #1e3a8a;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.download-btn:hover {
+  background: #162d6b;
+}

@@ -1,0 +1,242 @@
+.assign-layout {
+  display: flex;
+  gap: 30px;
+  padding: 30px;
+  background: #f1f5f9;
+  height: calc(100vh - 100px);
+  font-family: "Inter", sans-serif;
+  box-sizing: border-box;
+}
+
+.assign-form, .assign-list {
+  background: white;
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.assign-form { width: 40%; }
+.assign-list { width: 60%; }
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 14px;
+  outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #2563eb;
+}
+
+.assign-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.assign-btn:hover { background: #1e40af; }
+
+.cancel-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.success-message {
+  background: #dcfce7;
+  color: #166534;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.error-message {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+
+
+.scroll-area {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.course-block {
+  background: #f8fafc;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+  border: 1px solid #e2e8f0;
+  position: relative;
+}
+
+.course-block h4 {
+  margin: 0 0 8px 0;
+}
+
+.action-icons {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+.edit-icon, .delete-icon {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.edit-icon:hover { color: #2563eb; }
+.delete-icon:hover { color: #ef4444; }
+
+@media (max-width: 1024px) {
+  .assign-layout { flex-direction: column; height: auto; }
+  .assign-form, .assign-list { width: 100%; height: auto; }
+}
+.toggle-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.toggle-buttons button {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.toggle-buttons button.active-tab {
+  background: #2563eb;
+  color: white;
+  border: none;
+}
+
+.reactivate-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #16a34a;
+}
+
+.reactivate-btn:hover {
+  color: #15803d;
+}
+.search-box
+{
+  display: flex;
+  align-items: center;
+  background: #f1f5f9;
+  border-radius: 30px;
+  overflow: hidden;
+  width: 250px;
+  padding: auto;
+}
+.search-box input {
+  padding: 10px 15px 10px 35px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  outline: none;
+  font-size: 14px;
+  width: 250px;
+  transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+  border-color: #427afc;
+  background: #ffffff;
+  width: 300px;
+}
+/* ===== SYLLABUS SECTION ===== */
+
+.syllabus-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-top: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.syllabus-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.syllabus-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.syllabus-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  word-break: break-word;
+}
+
+.download-btn {
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.download-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.4);
+}
