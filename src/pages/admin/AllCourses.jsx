@@ -1,43 +1,38 @@
 import { useEffect, useState, useRef } from "react";
-import axios from "axios";
+import api from "../../api/axiosConfig";
 import { useNavigate } from "react-router-dom";
-import { ToastContainer, toast } from "react-toastify"; // Import Toast
-import "react-toastify/dist/ReactToastify.css"; // Import Toast Styles
+import { ToastContainer, toast } from "react-toastify";
+import { 
+  FaSearch, FaBell, FaBookOpen, FaClock, 
+  FaArrowRight, FaTimes, FaGraduationCap 
+} from "react-icons/fa";
+import "react-toastify/dist/ReactToastify.css";
 import "./AllCourses.css";
 
 function AllCourses() {
   const [courses, setCourses] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [hasNewNotification, setHasNewNotification] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   const lastCourseCount = useRef(0);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchCourses(true);
-
-    const interval = setInterval(() => {
-      fetchCourses(false);
-    }, 30000);
-
+    const interval = setInterval(() => fetchCourses(false), 30000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchCourses = async (isFirstLoad) => {
     try {
-      const response = await axios.get("http://localhost:8080/api/admin/courses/details");
+      const response = await api.get("admin/courses/details");
       const newCourses = response.data;
 
       if (!isFirstLoad && newCourses.length > lastCourseCount.current) {
         setHasNewNotification(true);
-        // Professional Toast implementation
-        toast.info("📚 New courses have been added!", {
+        toast.info("📚 New curriculum tracks added!", {
           position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
           theme: "colored",
         });
       }
@@ -46,13 +41,15 @@ function AllCourses() {
       lastCourseCount.current = newCourses.length;
     } catch (error) {
       console.error("Error fetching courses", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleNotificationClick = () => {
-    setHasNewNotification(false);
     if (hasNewNotification) {
-      toast.success("List updated with latest courses!");
+      setHasNewNotification(false);
+      toast.success("Catalog updated!");
     }
   };
 
@@ -61,61 +58,99 @@ function AllCourses() {
   );
 
   return (
-    <div className="courses-wrapper">
-      {/* Container for Toast Notifications */}
+    <div className="all-courses-module">
       <ToastContainer />
 
-      <div className="page-header-card">
-        <div className="header-left">
-          <h1>All Courses</h1>
-          <span>Manage and view available learning tracks</span>
-        </div>
-
-        <div className="header-right">
-          <div className="search-container">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search by course name..."
-              className="search-input"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <div className="notification-bell" onClick={handleNotificationClick}>
-            🔔
-            {hasNewNotification && <span className="notification-badge"></span>}
-          </div>
-        </div>
-      </div>
-
-      <div className="courses-grid">
-        {filteredCourses.length > 0 ? (
-          filteredCourses.map((course) => (
-            <div key={course.id} className="course-card">
-              <div className="card-top-row">
-                <div className="course-icon">📘</div>
-                <h2 className="course-title">{course.courseName}</h2>
-              </div>
-              <div className="card-body">
-                <div className="duration-tag">{course.duration}</div>
-                <p className="description">{course.description?.substring(0, 90)}...</p>
-              </div>
-              <button
-                className="view-btn"
-                onClick={() => navigate(`/admin/course-details/${course.id}`, { state: course })}
-              >
-                View Details
-              </button>
+      {/* HEADER SECTION */}
+      <header className="ac-main-header">
+        <div className="ac-header-inner">
+          <div className="ac-title-section">
+            <div className="ac-title-icon">
+              <FaGraduationCap />
             </div>
-          ))
+            <div className="ac-title-text">
+              <h1>Academic Catalog</h1>
+              <p>Displaying {filteredCourses.length} Learning Tracks</p>
+            </div>
+          </div>
+          
+          <div className="ac-header-controls">
+            {/* STRUCTURED SEARCH BAR */}
+            <div className={`ac-search-container ${searchTerm ? 'ac-active' : ''}`}>
+              <div className="ac-search-input-group">
+                <FaSearch className="ac-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search by course name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm && (
+                  <button className="ac-search-clear" onClick={() => setSearchTerm("")}>
+                    <FaTimes />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <button className="ac-notif-btn" onClick={handleNotificationClick}>
+              <FaBell className={`ac-bell ${hasNewNotification ? 'ac-swing' : ''}`} />
+              {hasNewNotification && <span className="ac-notif-dot"></span>}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="ac-content-wrapper">
+        {loading ? (
+          <div className="ac-state-view">
+            <div className="ac-spinner"></div>
+            <p>Syncing catalog data...</p>
+          </div>
+        ) : filteredCourses.length > 0 ? (
+          <div className="ac-card-grid">
+            {filteredCourses.map((course) => (
+              <div key={course.id} className="ac-course-card">
+                <div className="ac-card-glow"></div>
+                
+                <div className="ac-card-top">
+                  <div className="ac-icon-box">
+                    <FaBookOpen />
+                  </div>
+                  <div className="ac-duration">
+                    <FaClock className="ac-clock-icon" /> {course.duration}
+                  </div>
+                </div>
+
+                <div className="ac-card-body">
+                  <h2 className="ac-course-title">{course.courseName}</h2>
+                  <p className="ac-course-desc">
+                    {course.description || "Comprehensive learning module covering industry-standard practices and fundamental concepts."}
+                  </p>
+                </div>
+
+                <div className="ac-card-footer">
+                  <button
+                    className="ac-manage-btn"
+                    onClick={() => navigate(`/admin/course-details/${course.id}`, { state: course })}
+                  >
+                    <span>View Details</span>
+                    <FaArrowRight className="ac-arrow" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
-          <div className="no-results-msg">
-            {searchTerm ? `No courses match "${searchTerm}"` : "Loading courses..."}
+          <div className="ac-empty-state">
+            <div className="ac-empty-icon">📂</div>
+            <h3>No Courses Found</h3>
+            <p>We couldn't find matches for "{searchTerm}".</p>
+            <button className="ac-reset-btn" onClick={() => setSearchTerm("")}>Clear Filters</button>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

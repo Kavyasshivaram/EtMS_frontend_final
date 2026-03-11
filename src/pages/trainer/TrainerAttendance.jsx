@@ -1,22 +1,18 @@
 import React, { useEffect, useState } from "react";
 import api from "../../api/axiosConfig";
 import {
-  FaUserCheck, FaUserTimes, FaUserClock,
   FaSave, FaSearch, FaBookReader, FaChartLine,
-  FaFilter, FaUsers, FaFilePdf, FaCalendarAlt,
-  FaHistory, FaEdit
+  FaFilter, FaUsers, FaCalendarAlt,
+  FaHistory, FaEdit, FaArrowRight, FaEnvelope,
+  FaChevronLeft, FaChevronRight
 } from "react-icons/fa";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 import "./TrainerAttendance.css";
 
 function TrainerAttendance() {
-
   const user = JSON.parse(localStorage.getItem("user"));
   const trainerId = user?.id || 3;
   const trainerName = user?.name || "Rajesh Kumar";
-
-  const today = new Date().toISOString().split("T")[0];   // ✅ today date
+  const today = new Date().toISOString().split("T")[0];
 
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState("");
@@ -25,15 +21,19 @@ function TrainerAttendance() {
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [topicTaught, setTopicTaught] = useState("");
-  const [date, setDate] = useState(today);  // ✅ default today
+  const [date, setDate] = useState(today);
 
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useState(today);
+  const [toDate, setToDate] = useState(today);
 
   const [viewMode, setViewMode] = useState("MARK");
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 10;
 
   useEffect(() => {
     if (trainerId) fetchCourses();
@@ -43,165 +43,75 @@ function TrainerAttendance() {
     if (viewMode === "MARK" && selectedBatch && date) {
       checkExistingAttendance();
     }
+    setCurrentPage(1); // Reset page on mode/batch change
   }, [selectedBatch, date, viewMode]);
 
   const fetchCourses = async () => {
     try {
       const res = await api.get(`/teacher/courses/${trainerId}`);
       setCourses(res.data);
-    } catch (err) {
-      console.error("Course fetch failed", err);
-    }
-  };
-
-  const checkExistingAttendance = async () => {
-
-    setLoading(true);
-
-    try {
-
-      const res = await api.get(`/teacher/attendance/check?batchId=${selectedBatch}&date=${date}`);
-
-      if (res.data && res.data.length > 0) {
-
-        setStudents(res.data.map(item => ({
-          id: item.studentId,
-          name: item.studentName || "Student",
-          email: item.email || item.studentEmail || item.userEmail || "N/A",
-          status: item.status,
-          attendanceId: item.id
-        })));
-
-        setTopicTaught(res.data[0].topic || "");
-        setIsEditMode(true);
-
-      } else {
-
-        setIsEditMode(false);
-        setTopicTaught("");
-
-        const freshRes = await api.get(`/teacher/batches/${selectedBatch}/students`);
-
-        setStudents(freshRes.data.map(s => ({
-          ...s,
-          email: s.email || s.studentEmail || s.userEmail || "N/A",
-          status: "PRESENT",
-          attendanceId: null
-        })));
-
-      }
-
-    } catch (err) {
-      console.error("Check failed", err);
-    } finally {
-      setLoading(false);
-    }
-
+    } catch (err) { console.error("Course fetch failed", err); }
   };
 
   const handleCourseChange = async (courseId) => {
-
     setSelectedCourse(courseId);
     setSelectedBatch("");
     setStudents([]);
-    setAttendanceHistory([]);
-
     if (!courseId) return;
-
     try {
-
       const res = await api.get(`/teacher/courses/${trainerId}/${courseId}/batches`);
       setBatches(res.data);
-
-    } catch (err) {
-      console.error("Batch fetch failed", err);
-    }
-
+    } catch (err) { console.error(err); }
   };
 
-  const handleBatchChange = async (batchId) => {
-    setSelectedBatch(batchId);
-    if (!batchId) setStudents([]);
+  const checkExistingAttendance = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/teacher/attendance/check?batchId=${selectedBatch}&date=${date}`);
+      if (res.data && res.data.length > 0) {
+        setStudents(res.data.map(item => ({
+          id: item.studentId,
+          name: item.studentName || "Student",
+          email: item.studentEmail || item.email || "N/A",
+          status: item.status,
+          attendanceId: item.id
+        })));
+        setTopicTaught(res.data[0].topic || "");
+        setIsEditMode(true);
+      } else {
+        setIsEditMode(false);
+        setTopicTaught("");
+        const freshRes = await api.get(`/teacher/batches/${selectedBatch}/students`);
+        setStudents(freshRes.data.map(s => ({
+          ...s,
+          email: s.email || "N/A",
+          status: "PRESENT",
+          attendanceId: null
+        })));
+      }
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   const fetchAttendanceHistory = async () => {
-
-    if (!selectedBatch || !fromDate || !toDate) {
-      alert("Please select batch and valid date range");
-      return;
-    }
-
+    if (!selectedBatch) return alert("Please select a batch first.");
+    if (fromDate > today || toDate > today) return alert("Future dates are not allowed for reports.");
+    
     setLoading(true);
-
     try {
-
       const res = await api.get(`/teacher/attendance/history/${selectedBatch}?from=${fromDate}&to=${toDate}`);
-
-      setAttendanceHistory(res.data);
+      setAttendanceHistory(res.data.map(record => ({
+        ...record,
+        email: record.studentEmail || record.email || "N/A"
+      })));
       setViewMode("HISTORY");
-
-    } catch (err) {
-      console.error("History fetch failed", err);
-      alert("Could not fetch history");
-    } finally {
-      setLoading(false);
-    }
-
-  };
-
-  const handleStatusChange = (id, newStatus) => {
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s));
-  };
-
-  const markAll = (status) => {
-    setStudents(prev => prev.map(s => ({ ...s, status })));
-  };
-
-  const downloadPDF = () => {
-
-    const dataToExport = viewMode === "MARK" ? filteredStudents : attendanceHistory;
-
-    if (dataToExport.length === 0) {
-      alert("No data available");
-      return;
-    }
-
-    const doc = new jsPDF();
-
-    const tableColumn = viewMode === "MARK"
-      ? ["ID", "Student Name", "Email", "Status"]
-      : ["Date", "Student", "Status", "Topic"];
-
-    const tableRows = viewMode === "MARK"
-      ? dataToExport.map(s => [s.id, s.name, s.email, s.status])
-      : dataToExport.map(h => [h.attendanceDate, h.studentName, h.status, h.topic]);
-
-    doc.setFontSize(20);
-    doc.text("Attendance Report", 14, 20);
-
-    doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: 30
-    });
-
-    doc.save(`Attendance_Report_${selectedBatch}.pdf`);
-
+      setCurrentPage(1);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   const handleSave = async () => {
-
-    // ✅ FUTURE DATE VALIDATION
-    if (date > today) {
-      alert("Future dates are not allowed for attendance.");
-      return;
-    }
-
-    if (!selectedBatch || !topicTaught.trim()) {
-      alert("Select batch and enter topic.");
-      return;
-    }
-
+    if (date > today) return alert("Cannot mark attendance for future dates.");
+    if (!selectedBatch || !topicTaught.trim()) return alert("Batch and Topic are required.");
+    
     const payload = students.map(s => ({
       id: s.attendanceId,
       studentId: s.id,
@@ -210,98 +120,79 @@ function TrainerAttendance() {
       status: s.status,
       topic: topicTaught
     }));
-
     try {
-
       await api.post("/teacher/attendance/bulk", payload);
-
-      alert(isEditMode ? "Attendance Updated 📝" : "Attendance Saved ");
-
+      alert(isEditMode ? "Records Updated ✅" : "Attendance Saved ✅");
       checkExistingAttendance();
-
-    } catch (err) {
-      alert("Save failed");
-    }
-
+    } catch (err) { alert("Save failed"); }
   };
 
-  const filteredStudents = students.filter(s =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Search Logic
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+
+  const filteredData = viewMode === "MARK" 
+    ? students.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    : attendanceHistory.filter(h => h.studentName.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  // Pagination Logic
+  const indexOfLastRecord = currentPage * recordsPerPage;
+  const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+  const currentRecords = filteredData.slice(indexOfFirstRecord, indexOfLastRecord);
+  const totalPages = Math.ceil(filteredData.length / recordsPerPage);
 
   return (
     <div className="attendance-page-wrapper">
-
       <div className="attendance-container">
-
+        
         <header className="attendance-header-main">
-
           <div className="header-left">
-            <h1 className="page-title">Attendance Management</h1>
-
+            <h1 className="page-title">Session Roster</h1>
             <div className="trainer-info-tags">
-              <span className="info-pill blue">Trainer: {trainerName}</span>
-              {isEditMode && viewMode === "MARK" && (
-                <span className="info-pill orange-badge">Edit Mode</span>
-              )}
+              <span className="info-pill"><FaUsers /> {trainerName}</span>
+              {isEditMode && <span className="info-pill revision">Revision Mode</span>}
             </div>
-
           </div>
-
           <div className="header-right">
-
-            {viewMode === "MARK" && (
-              <div className="date-display-box">
-
-                <FaCalendarAlt />
-
-                {/* ✅ FUTURE DATE BLOCKED */}
-                <input
-                  type="date"
-                  value={date}
-                  max={today}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-
-              </div>
-            )}
-
-            <button
-              className={`save-session-btn ${isEditMode ? 'update' : ''}`}
-              onClick={handleSave}
-              disabled={viewMode === "HISTORY" || !selectedBatch}
-            >
-              <FaSave /> {isEditMode ? "Update Session" : "Save Session"}
+            <div className="date-input-box">
+              <FaCalendarAlt />
+              <input type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <button className={`save-btn ${isEditMode ? 'update' : ''}`} onClick={handleSave} disabled={viewMode === "HISTORY" || !selectedBatch}>
+              <FaSave /> {isEditMode ? "Update Records" : "Commit Attendance"}
             </button>
-
           </div>
-
         </header>
 
-        {/* Action Strips */}
-        <div className="action-strips-container">
-          <div className="strip-card stats-card">
-            <div className="strip-header"><FaChartLine /> STATS</div>
-            <div className="stats-content">
-              <div className="stat-group"><small>Total</small> <strong>{students.length}</strong></div>
-              <div className="stat-divider"></div>
-              <div className="stat-group p"><small>P</small> <strong>{students.filter(s => s.status === 'PRESENT').length}</strong></div>
-              <div className="stat-group a"><small>A</small> <strong>{students.filter(s => s.status === 'ABSENT').length}</strong></div>
-            </div>
-            {viewMode === "MARK" && (
-              <div className="bulk-mini-actions">
-                <button onClick={() => markAll('PRESENT')} className="bulk-btn p">All P</button>
-                <button onClick={() => markAll('ABSENT')} className="bulk-btn a">All A</button>
+        <div className="summary-section">
+          <div className="summary-card stats-card">
+            <div className="card-label"><FaChartLine /> Class Statistics & Bulk Actions</div>
+            <div className="stats-row">
+              <div className="stat-group total">
+                <span className="val">{students.length}</span>
+                <span className="lbl">Students</span>
               </div>
-            )}
+              <div className="vertical-divider"></div>
+              <div className="bulk-control-item p">
+                 <div className="count-display">{students.filter(s => s.status === 'PRESENT').length}</div>
+                 <button className="bulk-trigger" onClick={() => setStudents(prev => prev.map(s => ({...s, status: 'PRESENT'})))}>Set All Present</button>
+              </div>
+              <div className="bulk-control-item a">
+                 <div className="count-display">{students.filter(s => s.status === 'ABSENT').length}</div>
+                 <button className="bulk-trigger" onClick={() => setStudents(prev => prev.map(s => ({...s, status: 'ABSENT'})))}>Set All Absent</button>
+              </div>
+              <div className="bulk-control-item l">
+                 <div className="count-display">{students.filter(s => s.status === 'LEAVE').length}</div>
+                 <button className="bulk-trigger" onClick={() => setStudents(prev => prev.map(s => ({...s, status: 'LEAVE'})))}>Set All Leave</button>
+              </div>
+            </div>
           </div>
-
-          <div className="strip-card objective-card">
-            <div className="strip-header"><FaBookReader /> TOPIC</div>
-            <input 
-              type="text" 
-              className="objective-input"
-              placeholder="What are you teaching today?" 
+          <div className="summary-card topic-card">
+            <div className="card-label"><FaBookReader /> Learning Objective / Topic</div>
+            <textarea 
+              placeholder="e.g. Introduction to React Hooks..."
               value={topicTaught}
               onChange={(e) => setTopicTaught(e.target.value)}
               disabled={viewMode === "HISTORY"}
@@ -309,143 +200,151 @@ function TrainerAttendance() {
           </div>
         </div>
 
-        {/* Main Workspace */}
-        <div className="attendance-workspace">
-          
-          <aside className="selection-sidebar">
-            <div className="sidebar-card">
-              <h4 className="sidebar-title"><FaFilter /> Filter & Search</h4>
-              
-              <div className="form-item">
-                <div className="search-wrapper-mini">
-                 
-                  <input type="text" placeholder="Find student..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        <div className="main-workspace">
+          <aside className="control-panel">
+            <div className="unified-card">
+              <div className="card-section">
+                <h3 className="section-title"><FaFilter /> Class Selection</h3>
+                <div className="input-group">
+                  <label>Course Catalog</label>
+                  <select value={selectedCourse} onChange={(e) => handleCourseChange(e.target.value)}>
+                    <option value="">Select Course</option>
+                    {courses.map(c => <option key={c.courseId} value={c.courseId}>{c.courseName}</option>)}
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label>Active Batch</label>
+                  <select value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)}>
+                    <option value="">Select Batch</option>
+                    {batches.map(b => <option key={b.batchId} value={b.batchId}>{b.batchName}</option>)}
+                  </select>
                 </div>
               </div>
-
-              <div className="form-item">
-                <label>Course</label>
-                <select value={selectedCourse} onChange={(e) => handleCourseChange(e.target.value)}>
-                  <option value="">Select Course</option>
-                  {courses.map(c => <option key={c.courseId} value={c.courseId}>{c.courseName}</option>)}
-                </select>
-              </div>
-              <div className="form-item">
-                <label>Batch</label>
-                <select value={selectedBatch} onChange={(e) => handleBatchChange(e.target.value)}>
-                  <option value="">Select Batch</option>
-                  {batches.map(b => <option key={b.batchId} value={b.batchId}>{b.batchName}</option>)}
-                </select>
-              </div>
-
-              <div className="sidebar-divider-line" />
-
-              <h4 className="sidebar-title"><FaHistory /> Report Period</h4>
-              <div className="date-range-group">
-                <div className="form-item mini">
-                  <label>From</label>
-                  <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+              <div className="divider-solid"></div>
+              <div className="card-section">
+                <h3 className="section-title"><FaHistory /> Attendance Archive</h3>
+                <div className="date-range-inputs">
+                  <div className="range-field">
+                    <label>Start Date</label>
+                    <input type="date" value={fromDate} max={today} onChange={(e) => setFromDate(e.target.value)} />
+                  </div>
+                  <div className="range-field">
+                    <label>End Date</label>
+                    <input type="date" value={toDate} max={today} onChange={(e) => setToDate(e.target.value)} />
+                  </div>
                 </div>
-                <div className="form-item mini">
-                  <label>To</label>
-                  <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-                </div>
+                <button className="history-fetch-btn" onClick={fetchAttendanceHistory}>Generate Report <FaArrowRight /></button>
               </div>
-              <button className="view-history-btn" onClick={fetchAttendanceHistory}>
-                View History
-              </button>
-
-              <div className="sidebar-divider-line" />
-              
-              
             </div>
           </aside>
 
-          <main className="roster-main-section">
-            <div className="tab-navigation">
-              <button 
-                className={`tab-btn ${viewMode === "MARK" ? "active" : ""}`} 
-                onClick={() => setViewMode("MARK")}
-              >
-                <FaEdit /> Mark Attendance
-              </button>
-              <button 
-                className={`tab-btn ${viewMode === "HISTORY" ? "active" : ""}`} 
-                onClick={() => setViewMode("HISTORY")}
-              >
-                <FaHistory /> Attendance History
-              </button>
+          <main className="roster-area">
+            <div className="tab-bar">
+              <button className={viewMode === "MARK" ? "active" : ""} onClick={() => setViewMode("MARK")}><FaEdit /> Attendance Marking</button>
+              <button className={viewMode === "HISTORY" ? "active" : ""} onClick={() => setViewMode("HISTORY")}><FaHistory /> Past Records</button>
+              <div className="tab-search">
+                <FaSearch />
+                <input type="text" placeholder="Search by name..." value={searchTerm} onChange={handleSearch} />
+              </div>
             </div>
 
-            <div className="roster-card">
-              {viewMode === "MARK" ? (
-                <table className="roster-table-v2">
-                  <thead>
+            <div className="table-container">
+              <table className="custom-table">
+                <thead>
+                  {viewMode === "MARK" ? (
                     <tr>
-                      <th><FaUsers /> STUDENT</th>
-                      <th>EMAIL</th>
-                      <th className="center-align">STATUS</th>
+                      <th>Student Details</th>
+                      <th>Email Address</th>
+                      <th className="center-text">Attendance Status</th>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr><td colSpan="3" className="loading-msg">Fetching Data...</td></tr>
-                    ) : filteredStudents.length > 0 ? filteredStudents.map(student => (
-                      <tr key={student.id}>
-                        <td>
-                          <div className="student-profile-item">
-                            <div className="avatar-circle-v2">{student.name ? student.name.charAt(0) : "S"}</div>
-                            <div className="student-details">
-                               <span className="student-name-v2">{student.name}</span>
-                              
-                            </div>
-                          </div>
-                        </td>
-                        <td className="student-email-v2">{student.email}</td>
-                        <td>
-                          <div className="status-button-group">
-                            <button className={`status-btn-v2 p-v2 ${student.status === 'PRESENT' ? 'active' : ''}`} onClick={() => handleStatusChange(student.id, 'PRESENT')}><FaUserCheck /> <span>Present</span></button>
-                            <button className={`status-btn-v2 a-v2 ${student.status === 'ABSENT' ? 'active' : ''}`} onClick={() => handleStatusChange(student.id, 'ABSENT')}><FaUserTimes /> <span>Absent</span></button>
-                            <button className={`status-btn-v2 l-v2 ${student.status === 'LEAVE' ? 'active' : ''}`} onClick={() => handleStatusChange(student.id, 'LEAVE')}><FaUserClock /> <span>Leave</span></button>
-                          </div>
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr><td colSpan="3" className="empty-row-msg">No students found. Select a batch to load data.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              ) : (
-                <table className="roster-table-v2 history">
-                  <thead>
+                  ) : (
                     <tr>
-                      <th>DATE</th>
-                      <th>STUDENT</th>
-                      <th>TOPIC</th>
-                      <th>STATUS</th>
+                      <th>Date</th>
+                      <th>Student Name</th>
+                   
+                      <th>Topic</th>
+                      <th className="center-text">Status</th>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr><td colSpan="4" className="loading-msg">Fetching History...</td></tr>
-                    ) : attendanceHistory.length > 0 ? attendanceHistory.map((item, index) => (
-                      <tr key={index}>
-                        <td>{item.attendanceDate}</td>
-                        <td className="student-name-v2">{item.studentName}</td>
-                        <td className="student-email-v2">{item.topic}</td>
-                        <td>
-                          <span className={`history-status-pill ${item.status.toLowerCase()}`}>
-                            {item.status}
-                          </span>
-                        </td>
+                  )}
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan="5" className="loading-state">Loading records...</td></tr>
+                  ) : currentRecords.length === 0 ? (
+                    <tr><td colSpan="5" className="loading-state">No records found.</td></tr>
+                  ) : (
+                    currentRecords.map((item, i) => (
+                      <tr key={indexOfFirstRecord + i}>
+                        {viewMode === "MARK" ? (
+                          <>
+                            <td>
+                              <div className="student-info">
+                                <span className="avatar">{item.name.charAt(0)}</span>
+                                <span className="name">{item.name}</span>
+                              </div>
+                            </td>
+                            <td className="email-text"><FaEnvelope className="mail-icon"/>{item.email}</td>
+                            <td>
+                              <div className="status-label-group">
+                                <button className={`label-btn p ${item.status === 'PRESENT' ? 'active' : ''}`} onClick={() => setStudents(prev => prev.map(s => s.id === item.id ? {...s, status: 'PRESENT'} : s))}>Present</button>
+                                <button className={`label-btn a ${item.status === 'ABSENT' ? 'active' : ''}`} onClick={() => setStudents(prev => prev.map(s => s.id === item.id ? {...s, status: 'ABSENT'} : s))}>Absent</button>
+                                <button className={`label-btn l ${item.status === 'LEAVE' ? 'active' : ''}`} onClick={() => setStudents(prev => prev.map(s => s.id === item.id ? {...s, status: 'LEAVE'} : s))}>Leave</button>
+                              </div>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="date-col">{item.attendanceDate}</td>
+                            <td className="name">{item.studentName}</td>
+                    
+                            <td className="topic-text">{item.topic}</td>
+                            <td className="center-text">
+                              <span className={`status-text-badge ${item.status.toLowerCase()}`}>{item.status}</span>
+                            </td>
+                          </>
+                        )}
                       </tr>
-                    )) : (
-                      <tr><td colSpan="4" className="empty-row-msg">No history found for this range.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
+
+            {/* Pagination UI */}
+            {!loading && totalPages > 1 && (
+              <div className="pagination-wrapper">
+                <div className="pagination-info">
+                  Showing <b>{indexOfFirstRecord + 1}</b> to <b>{Math.min(indexOfLastRecord, filteredData.length)}</b> of <b>{filteredData.length}</b> records
+                </div>
+                <div className="pagination-btns">
+                  <button 
+                    disabled={currentPage === 1} 
+                    onClick={() => setCurrentPage(prev => prev - 1)}
+                    className="p-btn"
+                  >
+                    <FaChevronLeft /> Previous
+                  </button>
+                  <div className="page-numbers">
+                    {[...Array(totalPages)].map((_, idx) => (
+                      <button 
+                        key={idx} 
+                        className={`num-btn ${currentPage === idx + 1 ? 'active' : ''}`}
+                        onClick={() => setCurrentPage(idx + 1)}
+                      >
+                        {idx + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <button 
+                    disabled={currentPage === totalPages} 
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    className="p-btn"
+                  >
+                    Next <FaChevronRight />
+                  </button>
+                </div>
+              </div>
+            )}
           </main>
         </div>
       </div>

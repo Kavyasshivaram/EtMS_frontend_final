@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axiosConfig"; // Using your configured api instance
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "./AssignTrainer.css";
-
-const API_BASE = "http://localhost:8080/api/admin";
 
 function AssignTrainer() {
   const [trainers, setTrainers] = useState([]);
@@ -23,20 +21,18 @@ function AssignTrainer() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const token = localStorage.getItem("token");
-
   useEffect(() => {
     fetchTrainers();
   }, []);
 
+  // ✅ Change 1: Removed API_BASE and used api.get with relative path
   const fetchTrainers = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/all-trainers`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get("/admin/all-trainers");
       setTrainers(res.data);
     } catch (err) {
-      console.error("Error fetching trainers");
+      console.error("Error fetching trainers", err);
+      setError("Failed to load trainers list.");
     }
   };
 
@@ -75,35 +71,33 @@ function AssignTrainer() {
     setErrors({});
   };
 
+  // ✅ Change 2: Used api.put and api.post (No need to manually pass token if configured in axiosConfig)
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     try {
       setLoading(true);
+      setError("");
       if (editId) {
-        await axios.put(`${API_BASE}/update-trainer/${editId}`, newTrainer, { 
-            headers: { Authorization: `Bearer ${token}` } 
-        });
+        await api.put(`/admin/update-trainer/${editId}`, newTrainer);
         setMessage("Trainer updated successfully");
       } else {
-        const res = await axios.post(`${API_BASE}/create-trainer`, newTrainer, { 
-            headers: { Authorization: `Bearer ${token}` } 
-        });
-        setMessage(res.data.message);
+        const res = await api.post("/admin/create-trainer", newTrainer);
+        setMessage(res.data.message || "Trainer created successfully");
       }
       resetForm();
       fetchTrainers();
       setTimeout(() => setMessage(""), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || "Something went wrong");
+      setError(err.response?.data?.message || "Something went wrong during the save process.");
     } finally {
       setLoading(false);
     }
   };
 
   const filtered = trainers.filter(t =>
-    t.name.toLowerCase().includes(search.toLowerCase())
+    t.name?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -156,31 +150,34 @@ function AssignTrainer() {
         </div>
 
         <div className="scroll-area">
-          {filtered.map(t => (
-            <div key={t.id} className="course-block">
-              <div className="block-content">
-                <h4>{t.name}</h4>
-                <p><strong>Email:</strong> {t.email}</p>
-                <p><strong>Phone:</strong> {t.phone}</p>
-                <div className="password-row">
-                  <span>{showPasswordId === t.id ? t.password : "••••••••"}</span>
-                  <span className="eye-icon" onClick={() => setShowPasswordId(showPasswordId === t.id ? null : t.id)}>
-                    {showPasswordId === t.id ? <FaEyeSlash size={14}/> : <FaEye size={14}/>}
-                  </span>
+          {filtered.length > 0 ? (
+            filtered.map(t => (
+              <div key={t.id} className="course-block">
+                <div className="block-content">
+                  <h4>{t.name}</h4>
+                  <p><strong>Email:</strong> {t.email}</p>
+                  <p><strong>Phone:</strong> {t.phone}</p>
+                  <div className="password-row">
+                    <span>{showPasswordId === t.id ? t.password : "••••••••"}</span>
+                    <span className="eye-icon" onClick={() => setShowPasswordId(showPasswordId === t.id ? null : t.id)}>
+                      {showPasswordId === t.id ? <FaEyeSlash size={14}/> : <FaEye size={14}/>}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              {/* FIXED ACTIONS GROUP */}
-              <div className="status-action-group">
-                <span className={`status-badge ${t.status?.toLowerCase()}`}>
-                  {t.status}
-                </span>
-                <div className="action-icons">
-                  <button className="edit-icon" onClick={() => handleEdit(t)}>✏️</button>
+                <div className="status-action-group">
+                  <span className={`status-badge ${t.status?.toLowerCase() || 'pending'}`}>
+                    {t.status || 'ACTIVE'}
+                  </span>
+                  <div className="action-icons">
+                    <button className="edit-icon" onClick={() => handleEdit(t)}>✏️</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="no-data">No trainers found.</p>
+          )}
         </div>
       </div>
     </div>

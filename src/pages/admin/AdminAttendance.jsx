@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../api/axiosConfig";
-//import axios from "axios";
+
 import "./AdminAttendance.css";
 
 const AdminAttendance = () => {

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axiosConfig";
 import { 
   FaBook, FaDownload, FaCalendarAlt, FaClock, 
   FaLink, FaUserGraduate, FaExclamationCircle 
 } from "react-icons/fa";
 import "./StudentCourses.css";
 
-const API_BASE = "http://localhost:8080/api/student";
+const API_BASE = "/student";
 
 function StudentCourses() {
   const [courses, setCourses] = useState([]);
@@ -23,11 +23,12 @@ function StudentCourses() {
   const fetchStudentData = async () => {
     try {
       setLoading(true);
-      // This endpoint should perform the JOIN between student_course, course_master, and batches
-      const res = await axios.get(`${API_BASE}/my-courses`, {
-  headers: { Authorization: `Bearer ${token}` },
-  withCredentials: true
-});
+
+      const res = await api.get(`${API_BASE}/my-courses`, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true
+      });
+
       setCourses(res.data);
     } catch (err) {
       setError("Unable to load your curriculum. Please check your connection.");
@@ -88,7 +89,6 @@ function StudentCourses() {
                   )}
                 </div>
 
-                {/* Next Scheduled Class (from scheduled_classes table) */}
                 <div className="schedule-preview">
                    <div className="schedule-row">
                       <FaCalendarAlt className="icon" />
@@ -105,7 +105,7 @@ function StudentCourses() {
                 {course.syllabusFileName && (
                   <button 
                     className="action-btn outline"
-                    onClick={() => window.open(`http://localhost:8080/api/student/courses/download/${course.id}`, "_blank")}
+                    onClick={() => window.open(`${api.defaults.baseURL}/student/courses/download/${course.id}`, "_blank")}
                   >
                     <FaDownload /> Syllabus
                   </button>

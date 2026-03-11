@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useEffect, useState, useRef } from "react";
+import api from "../../api/axiosConfig"; 
+
 import "./CreateCourse.css";
 
-const API_BASE = "http://localhost:8080/api/admin";
+const API_BASE = "/admin";
 
 function CreateCourse() {
-
   const [courseName, setCourseName] = useState("");
   const [duration, setDuration] = useState("");
   const [description, setDescription] = useState("");
-  const [file, setFile] = useState(null); // ✅ NEW
+  const [file, setFile] = useState(null);
+  
+  // Used to reset the file input field physically
+  const fileInputRef = useRef(null);
 
   const [courses, setCourses] = useState([]);
   const [inactiveCourses, setInactiveCourses] = useState([]);
@@ -30,17 +33,17 @@ function CreateCourse() {
 
   const fetchCourses = async () => {
     try {
-      const activeRes = await axios.get(`${API_BASE}/courses`, {
+      const activeRes = await api.get(`${API_BASE}/courses`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      const inactiveRes = await axios.get(`${API_BASE}/courses/inactive`, {
+      const inactiveRes = await api.get(`${API_BASE}/courses/inactive`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       setCourses(activeRes.data);
       setInactiveCourses(inactiveRes.data);
-    } catch {
+    } catch (err) {
       setError("Failed to load courses.");
     }
   };
@@ -49,9 +52,12 @@ function CreateCourse() {
     setCourseName("");
     setDuration("");
     setDescription("");
-    setFile(null); // ✅ reset file
+    setFile(null);
     setEditingId(null);
     setError("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Clear the actual input
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -60,13 +66,12 @@ function CreateCourse() {
     setMessage("");
 
     if (!courseName || !duration || description.length < 10) {
-      return setError("Please fill all fields correctly.");
+      return setError("Please fill all fields correctly (Description min 10 chars).");
     }
 
     try {
       setLoading(true);
 
-      // ✅ Use FormData instead of JSON
       const formData = new FormData();
       formData.append("courseName", courseName);
       formData.append("duration", duration);
@@ -76,21 +81,20 @@ function CreateCourse() {
         formData.append("file", file);
       }
 
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data"
+        }
+      };
+
       if (editingId) {
-        await axios.put(`${API_BASE}/courses/${editingId}`, formData, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data"
-          }
-        });
+        // Use 'api' instance instead of 'axios'
+        await api.put(`${API_BASE}/courses/${editingId}`, formData, config);
         setMessage("Course updated successfully!");
       } else {
-        await axios.post(`${API_BASE}/course`, formData, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data"
-          }
-        });
+        // Use 'api' instance instead of 'axios'
+        await api.post(`${API_BASE}/course`, formData, config);
         setMessage("Course created successfully!");
       }
 
@@ -100,9 +104,7 @@ function CreateCourse() {
 
     } catch (err) {
       setError(
-        typeof err.response?.data === "string"
-          ? err.response.data
-          : err.response?.data?.message || "Operation failed."
+        err.response?.data?.message || err.response?.data || "Operation failed."
       );
     } finally {
       setLoading(false);
@@ -114,36 +116,36 @@ function CreateCourse() {
     setCourseName(course.courseName);
     setDuration(course.duration);
     setDescription(course.description);
+    // Note: We don't set the file here because you can't "pre-fill" an <input type="file" />
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Mark this course as inactive?")) return;
     try {
-      await axios.delete(`${API_BASE}/courses/${id}`, {
+      await api.delete(`${API_BASE}/courses/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMessage("Course marked as Inactive.");
       fetchCourses();
-    } catch {
+    } catch (err) {
       setError("Failed to delete course.");
     }
   };
 
   const handleReactivate = async (id) => {
     try {
-      await axios.put(`${API_BASE}/courses/reactivate/${id}`, {}, {
+      await api.put(`${API_BASE}/courses/reactivate/${id}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMessage("Course reactivated successfully.");
       fetchCourses();
-    } catch {
+    } catch (err) {
       setError("Failed to reactivate course.");
     }
   };
 
-  const displayedCourses =
-    viewMode === "ACTIVE" ? courses : inactiveCourses;
+  const displayedCourses = viewMode === "ACTIVE" ? courses : inactiveCourses;
 
   const filteredCourses = displayedCourses.filter((course) =>
     course.courseName?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -151,7 +153,6 @@ function CreateCourse() {
 
   return (
     <div className="assign-layout">
-
       {/* LEFT FORM */}
       <div className="assign-form">
         <h2>{editingId ? "Edit Course" : "Create New Course"}</h2>
@@ -184,7 +185,7 @@ function CreateCourse() {
           <label>Description</label>
           <textarea
             rows="5"
-            maxLength="500"   // ✅ Increased to 500
+            maxLength="500"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Enter course description..."
@@ -192,14 +193,15 @@ function CreateCourse() {
           <small>{description.length}/500 characters</small>
         </div>
 
-        {/* ✅ NEW FILE UPLOAD */}
         <div className="form-group">
           <label>Upload Syllabus (PDF / DOC / DOCX)</label>
           <input
             type="file"
+            ref={fileInputRef}
             accept=".pdf,.doc,.docx"
             onChange={(e) => setFile(e.target.files[0])}
           />
+          {editingId && <small style={{color: '#666'}}>Leave blank to keep existing file.</small>}
         </div>
 
         <button
@@ -207,15 +209,11 @@ function CreateCourse() {
           onClick={handleSubmit}
           disabled={loading}
         >
-          {loading
-            ? "Saving..."
-            : editingId
-            ? "Update Course"
-            : "Create Course"}
+          {loading ? "Saving..." : editingId ? "Update Course" : "Create Course"}
         </button>
 
         {editingId && (
-          <button className="cancel-btn" onClick={resetForm}>
+          <button className="cancel-btn" onClick={resetForm} style={{ marginLeft: '10px' }}>
             Cancel
           </button>
         )}
@@ -223,10 +221,8 @@ function CreateCourse() {
 
       {/* RIGHT LIST */}
       <div className="assign-list">
-
         <div className="list-header">
           <h3>Course Management</h3>
-
           <div className="toggle-buttons">
             <button
               className={viewMode === "ACTIVE" ? "active-tab" : ""}
@@ -253,66 +249,56 @@ function CreateCourse() {
         </div>
 
         <div className="scroll-area">
-          {filteredCourses.map((course) => (
-            <div key={course.id} className="course-block">
-              <h4>{course.courseName}</h4>
-              <p><strong>Duration:</strong> {course.duration}</p>
-              <p>{course.description}</p>
+          {filteredCourses.length > 0 ? (
+            filteredCourses.map((course) => (
+              <div key={course.id} className="course-block">
+                <h4>{course.courseName}</h4>
+                <p><strong>Duration:</strong> {course.duration}</p>
+                <p>{course.description}</p>
 
-              {course.syllabusFileName && (
-  <div className="syllabus-section">
-    <div className="syllabus-info">
-      <span className="syllabus-label">Syllabus:</span>
-      <span className="syllabus-name">
-        {course.syllabusFileName}
-      </span>
-    </div>
-
-    <button
-      className="download-btn"
-      onClick={() =>
-        window.open(
-          `${API_BASE}/courses/download/${course.id}`,
-          "_blank"
-        )
-      }
-    >
-      ⬇ Download
-    </button>
-  </div>
-)}
-
-              <div className="action-icons">
-                {viewMode === "ACTIVE" && (
-                  <>
+                {course.syllabusFileName && (
+                  <div className="syllabus-section">
+                    <div className="syllabus-info">
+                      <span className="syllabus-label">Syllabus:</span>
+                      <span className="syllabus-name">{course.syllabusFileName}</span>
+                    </div>
                     <button
-                      className="edit-icon"
-                      onClick={() => handleEdit(course)}
+                      className="download-btn"
+                      onClick={() =>
+                        window.open(
+                          `${api.defaults.baseURL}${API_BASE}/courses/download/${course.id}`,
+                          "_blank"
+                        )
+                      }
                     >
-                      ✏️
+                      ⬇ Download
                     </button>
-                    <button
-                      className="delete-icon"
-                      onClick={() => handleDelete(course.id)}
-                    >
-                      🗑️
-                    </button>
-                  </>
+                  </div>
                 )}
 
-                {viewMode === "INACTIVE" && (
-                  <button
-                    className="reactivate-btn"
-                    onClick={() => handleReactivate(course.id)}
-                  >
-                    🔄
-                  </button>
-                )}
+                <div className="action-icons">
+                  {viewMode === "ACTIVE" && (
+                    <>
+                      <button className="edit-icon" onClick={() => handleEdit(course)}>
+                        ✏️
+                      </button>
+                      <button className="delete-icon" onClick={() => handleDelete(course.id)}>
+                        🗑️
+                      </button>
+                    </>
+                  )}
+                  {viewMode === "INACTIVE" && (
+                    <button className="reactivate-btn" onClick={() => handleReactivate(course.id)}>
+                      🔄
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="no-data">No courses found.</p>
+          )}
         </div>
-
       </div>
     </div>
   );

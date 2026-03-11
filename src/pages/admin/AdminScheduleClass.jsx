@@ -183,9 +183,13 @@ function AdminScheduleClass() {
 
     } catch (err) {
 
-      setErrorMsg("Failed to save schedule.");
+  if (err.response && err.response.data) {
+    setErrorMsg(err.response.data);
+  } else {
+    setErrorMsg("Failed to save schedule.");
+  }
 
-    } finally {
+} finally {
 
       setLoading(false);
 

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../api/axiosConfig";
 import "./StudentDashboard.css";
 
 function StudentDashboard() {
@@ -26,28 +26,31 @@ function StudentDashboard() {
   // ================= FETCH DASHBOARD DATA =================
   useEffect(() => {
 
-    const fetchDashboard = async () => {
-      try {
+  const fetchDashboard = async () => {
 
-        // Inside fetchDashboard
-const res = await axios.get(
-  "http://localhost:8080/api/student/dashboard",
-  {
-    headers: { Authorization: `Bearer ${token}` },
-    withCredentials: true
-  }
-);
+    try {
 
-        setStats(res.data);
+      const res = await api.get("/student/dashboard", {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true
+      });
 
-      } catch (err) {
-        console.error("Dashboard load error", err);
-      }
-    };
+      setStats({
+        totalCourses: res.data.totalCourses || 0,
+        attendance: res.data.attendance || 0,
+        pendingAssignments: res.data.pendingAssignments || 0,
+        progress: res.data.progress || 0
+      });
 
-    fetchDashboard();
+    } catch (err) {
+      console.error("Dashboard load error", err);
+    }
 
-  }, []);
+  };
+
+  fetchDashboard();
+
+}, []);
 
   // ================= CLOSE DROPDOWN =================
   useEffect(() => {

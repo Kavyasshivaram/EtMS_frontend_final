@@ -290,3 +290,48 @@
 .schedule-scroll{
   scrollbar-width: none;
 }
+/* =========================
+   PAGINATION DESIGN
+========================= */
+
+.pagination-box{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pagination-box button{
+  background: #4318ff;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.pagination-box button:hover{
+  background: #3210d4;
+  transform: translateY(-1px);
+}
+
+.pagination-box button:disabled{
+  background: #cbd5f5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pagination-box span{
+  font-size: 13px;
+  font-weight: 600;
+  color: #2b3674;
+  background: #f4f7fe;
+  padding: 6px 12px;
+  border-radius: 6px;
+}

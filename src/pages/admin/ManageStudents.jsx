@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axiosConfig"; 
+import { 
+  FaUserGraduate, 
+  FaBookOpen, 
+  FaLayerGroup, 
+  FaSearch, 
+  FaLink, 
+  FaCheckCircle,
+  FaInfoCircle 
+} from "react-icons/fa";
 import "./ManageStudents.css";
 
-const API_BASE = "http://localhost:8080/api/admin";
-
 function ManageStudents() {
-  const token = localStorage.getItem("token");
-  const headers = { headers: { Authorization: `Bearer ${token}` } };
-
   const [students, setStudents] = useState([]);
   const [courses, setCourses] = useState([]);
   const [batches, setBatches] = useState([]);
@@ -25,6 +29,9 @@ function ManageStudents() {
   const [selectedBatch, setSelectedBatch] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -33,19 +40,20 @@ function ManageStudents() {
   const fetchData = async () => {
     try {
       const [s, c, cm, bm] = await Promise.all([
-        axios.get(`${API_BASE}/students`, headers),
-        axios.get(`${API_BASE}/courses`, headers),
-        axios.get(`${API_BASE}/student-course-mappings`, headers),
-        axios.get(`${API_BASE}/student-batch-mappings`, headers)
+        api.get("/admin/students"),
+        api.get("/admin/courses"),
+        api.get("/admin/student-course-mappings"),
+        api.get("/admin/student-batch-mappings")
       ]);
       setStudents(s.data);
       setCourses(c.data);
       setCourseMappings(cm.data);
       setBatchMappings(bm.data);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      setError("Failed to fetch data. Please refresh.");
+    }
   };
 
-  // Logic: When student is selected for batch, find courses they are enrolled in
   const handleStudentSelectForBatch = (studentId) => {
     setSelectedStudentBatch(studentId);
     setSelectedCourseForBatch("");
@@ -56,7 +64,6 @@ function ManageStudents() {
       return;
     }
 
-    // Filter course mappings for this student
     const studentEnrolled = courseMappings
       .filter(m => Number(m.studentId) === Number(studentId))
       .map(m => ({ id: m.courseId, name: m.courseName }));
@@ -68,33 +75,51 @@ function ManageStudents() {
     setSelectedCourseForBatch(courseId);
     if (!courseId) return setBatches([]);
     try {
-      const res = await axios.get(`${API_BASE}/batches/course/${courseId}`, headers);
-      // 🔥 Filter: Show only ONGOING/ACTIVE batches
+      const res = await api.get(`/admin/batches/course/${courseId}`);
       const activeOnly = res.data.filter(b => b.status === "ONGOING" || b.status === "ACTIVE");
       setBatches(activeOnly);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleCourseSubmit = async () => {
-    if (!selectedStudentCourse || !selectedCourse) return alert("Select all fields");
+    if (!selectedStudentCourse || !selectedCourse) return setError("Select student and course");
     try {
-      await axios.post(`${API_BASE}/student-course-mappings`, null, {
-        ...headers, params: { studentId: selectedStudentCourse, courseId: selectedCourse }
+      setLoading(true);
+      await api.post("/admin/student-course-mappings", null, {
+        params: { studentId: selectedStudentCourse, courseId: selectedCourse }
       });
-      alert("Enrolled successfully!");
+      setMessage("Student enrolled in course successfully!");
       fetchData();
-    } catch (err) { alert(err.response?.data || "Enrollment failed"); }
+      setSelectedStudentCourse("");
+      setSelectedCourse("");
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      setError(err.response?.data || "Enrollment failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBatchSubmit = async () => {
-    if (!selectedStudentBatch || !selectedBatch) return alert("Select all fields");
+    if (!selectedStudentBatch || !selectedBatch) return setError("Select student and batch");
     try {
-      await axios.post(`${API_BASE}/student-batch-mappings`, null, {
-        ...headers, params: { studentId: selectedStudentBatch, batchId: selectedBatch }
+      setLoading(true);
+      await api.post("/admin/student-batch-mappings", null, {
+        params: { studentId: selectedStudentBatch, batchId: selectedBatch }
       });
-      alert("Batch allotted successfully!");
+      setMessage("Batch allotted successfully!");
       fetchData();
-    } catch (err) { alert(err.response?.data || "Allotment failed"); }
+      setSelectedStudentBatch("");
+      setSelectedBatch("");
+      setEnrolledCourses([]);
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      setError(err.response?.data || "Allotment failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredList = batchMappings.filter(item => 
@@ -102,74 +127,122 @@ function ManageStudents() {
   );
 
   return (
-    <div className="assign-layout">
-      <div className="assign-form">
-        <div className="form-scroll-container">
+    <div className="etms-container">
+      <div className="etms-layout">
+        
+        {/* LEFT PANEL: ASSIGNMENT FORMS */}
+        <div className="etms-card form-card">
+          <h2 className="etms-title">Student Management</h2>
           
-          <div className="form-section">
-            <h3>Step 1: Student Enrollment</h3>
-            <label>Student</label>
-            <select value={selectedStudentCourse} onChange={(e) => setSelectedStudentCourse(e.target.value)}>
-              <option value="">-- Select --</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <label>Course</label>
-            <select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)}>
-              <option value="">-- Select --</option>
-              {courses.map(c => <option key={c.id} value={c.id}>{c.courseName}</option>)}
-            </select>
-            <button className="assign-btn" onClick={handleCourseSubmit}>Link Course</button>
-          </div>
+          {message && <p className="msg-success"><FaCheckCircle /> {message}</p>}
+          {error && <p className="msg-error"><FaInfoCircle /> {error}</p>}
 
-          <hr style={{margin: '20px 0', border: '0.5px solid #eee'}} />
-
-          <div className="form-section">
-            <h3>Step 2: Batch Allotment</h3>
-            <label>Select Student</label>
-            <select value={selectedStudentBatch} onChange={(e) => handleStudentSelectForBatch(e.target.value)}>
-              <option value="">-- Select --</option>
-              {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-
-            <label>Select Course (Enrollments only)</label>
-            <select 
-              value={selectedCourseForBatch} 
-              onChange={(e) => fetchActiveBatches(e.target.value)}
-              disabled={enrolledCourses.length === 0}
-            >
-              <option value="">{enrolledCourses.length === 0 ? "Enroll in course first" : "-- Select --"}</option>
-              {enrolledCourses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-
-            <label>Select Active Batch</label>
-            <select value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)} disabled={batches.length === 0}>
-              <option value="">{batches.length === 0 ? "No Active Batches" : "-- Select --"}</option>
-              {batches.map(b => <option key={b.id} value={b.id}>{b.batchName}</option>)}
-            </select>
-            
-            <button className="assign-btn" onClick={handleBatchSubmit} disabled={!selectedBatch}>Link Batch</button>
-          </div>
-        </div>
-      </div>
-
-      <div className="assign-list">
-        <div className="list-header-row">
-          <h3>Current Assignments</h3>
-          <input className="list-search-input" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        </div>
-        <div className="scroll-area">
-          {filteredList.map((item) => (
-            <div key={item.mappingId} className="course-block">
-              <div style={{display:'flex', justifyContent:'space-between'}}>
-                 <h4>{item.studentName}</h4>
-                 <span className="status-badge ongoing">{item.batchStatus}</span>
+          <div className="form-scroll-container">
+            {/* STEP 1: ENROLLMENT */}
+            <div className="form-section-box">
+              <h4 className="section-subtitle"><FaBookOpen /> Step 1: Course Enrollment</h4>
+              <div className="etms-group">
+                <label>Select Student</label>
+                <select value={selectedStudentCourse} onChange={(e) => setSelectedStudentCourse(e.target.value)}>
+                  <option value="">-- Choose Student --</option>
+                  {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
               </div>
-              <p><strong>Email:</strong> {item.studentEmail}</p>
-              <p><strong>Course:</strong> {item.courseName}</p>
-              <p><strong>Batch:</strong> {item.batchName}</p>
+              <div className="etms-group">
+                <label>Select Course</label>
+                <select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)}>
+                  <option value="">-- Choose Course --</option>
+                  {courses.map(c => <option key={c.id} value={c.id}>{c.courseName}</option>)}
+                </select>
+              </div>
+              <button className="btn-primary" onClick={handleCourseSubmit} disabled={loading}>
+                <FaLink /> Link Course
+              </button>
             </div>
-          ))}
+
+           
+
+            {/* STEP 2: BATCH ALLOTMENT */}
+            <div className="form-section-box">
+              <h4 className="section-subtitle"><FaLayerGroup /> Step 2: Batch Allotment</h4>
+              <div className="etms-group">
+                <label>Student</label>
+                <select value={selectedStudentBatch} onChange={(e) => handleStudentSelectForBatch(e.target.value)}>
+                  <option value="">-- Choose Student --</option>
+                  {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+
+              <div className="etms-group">
+                <label>Course (Must be enrolled)</label>
+                <select 
+                  value={selectedCourseForBatch} 
+                  onChange={(e) => fetchActiveBatches(e.target.value)}
+                  disabled={enrolledCourses.length === 0}
+                >
+                  <option value="">{enrolledCourses.length === 0 ? "Enroll in course first" : "-- Select Course --"}</option>
+                  {enrolledCourses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div className="etms-group">
+                <label>Active Batch</label>
+                <select value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)} disabled={batches.length === 0}>
+                  <option value="">{batches.length === 0 ? "No Active Batches" : "-- Select Batch --"}</option>
+                  {batches.map(b => <option key={b.id} value={b.id}>{b.batchName}</option>)}
+                </select>
+              </div>
+              
+              <button className="btn-primary navy" onClick={handleBatchSubmit} disabled={!selectedBatch || loading}>
+                 Assign Batch
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* RIGHT PANEL: CURRENT ASSIGNMENTS */}
+        <div className="etms-card list-card">
+          <div className="list-header">
+            <h3>Current Assignments</h3>
+            <div className="search-input-wrapper">
+              <FaSearch className="search-icon" />
+              <input 
+                type="text" 
+                placeholder="Search by name, course, or batch..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="course-scroll">
+            {filteredList.length > 0 ? (
+              filteredList.map((item) => (
+                <div key={item.mappingId} className="course-row">
+                  <div className="row-content">
+                    <div className="row-header">
+                      <h4>{item.studentName}</h4>
+                      <span className={`status-pill ${item.batchStatus?.toLowerCase()}`}>
+                        {item.batchStatus}
+                      </span>
+                    </div>
+                    <div className="assignment-details">
+                      <p><strong><FaUserGraduate /> Email:</strong> {item.studentEmail}</p>
+                      <p><strong><FaBookOpen /> Course:</strong> {item.courseName}</p>
+                      <p><strong><FaLayerGroup /> Batch:</strong> {item.batchName}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="empty-state">
+                <FaInfoCircle size={40} />
+                <p>No assignments found.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   );

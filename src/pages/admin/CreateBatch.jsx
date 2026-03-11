@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axiosConfig"; 
+import { 
+  FaEdit, FaTrashAlt, FaCalendarAlt, FaUserTie, 
+  FaBook, FaSearch, FaChevronLeft, FaChevronRight, FaEnvelope 
+} from "react-icons/fa";
 import "./CreateBatch.css";
-
-const API_BASE = "http://localhost:8080/api/admin";
 
 function CreateBatch() {
   const [batchName, setBatchName] = useState("");
@@ -20,68 +22,70 @@ function CreateBatch() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  
-  const token = localStorage.getItem("token");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 4; 
 
   useEffect(() => {
-    fetchCourses();
-    fetchTrainers();
-    fetchBatches();
-
-    const handleBatchUpdate = () => {
-      fetchBatches();
-    };
-
-    window.addEventListener("batchStatusUpdated", handleBatchUpdate);
-    return () => {
-      window.removeEventListener("batchStatusUpdated", handleBatchUpdate);
-    };
+    fetchInitialData();
   }, []);
 
-  const fetchCourses = async () => {
-    try {
-      const res = await axios.get(`${API_BASE}/courses`, { headers: { Authorization: `Bearer ${token}` } });
-      setCourses(res.data);
-    } catch (err) { console.error("Failed to load courses."); }
-  };
+  // Reset to first page whenever search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
-  const fetchTrainers = async () => {
+  const fetchInitialData = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/trainers`, { headers: { Authorization: `Bearer ${token}` } });
-      setTrainers(res.data);
-    } catch (err) { console.error("Failed to load trainers."); }
+      const [courseRes, trainerRes, batchRes] = await Promise.all([
+        api.get("/admin/courses"),
+        api.get("/admin/trainers"),
+        api.get("/admin/batches")
+      ]);
+      setCourses(courseRes.data);
+      setTrainers(trainerRes.data);
+      setBatches(batchRes.data);
+    } catch (err) {
+      console.error("Failed to load initial data", err);
+    }
   };
 
   const fetchBatches = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/batches`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get("/admin/batches");
       setBatches(res.data);
     } catch (err) { console.error("Failed to load batches."); }
   };
 
   const resetForm = () => {
     setBatchName(""); setStartDate(""); setEndDate(""); setCourseId(""); setTrainerId("");
-    setStatus("ONGOING"); setEditingId(null); setError("");
+    setStatus("ONGOING"); setEditingId(null); setError(""); setMessage("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!batchName || !startDate || !endDate || !courseId || !trainerId) return setError("Fill all fields.");
+    if (!batchName || !startDate || !endDate || !courseId || !trainerId) {
+      return setError("Please fill all required fields.");
+    }
     setLoading(true); setMessage(""); setError("");
 
     const payload = { batchName, startDate, endDate, courseId, trainerId, status };
     try {
       if (editingId) {
-        await axios.put(`${API_BASE}/batches/${editingId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
-        setMessage("Batch updated!");
+        await api.put(`/admin/batches/${editingId}`, payload);
+        setMessage("Batch updated successfully!");
       } else {
-        await axios.post(`${API_BASE}/create-batch`, payload, { headers: { Authorization: `Bearer ${token}` } });
-        setMessage("Batch created!");
+        await api.post("/admin/create-batch", payload);
+        setMessage("Batch created successfully!");
       }
-      resetForm(); fetchBatches();
+      resetForm(); 
+      fetchBatches();
       setTimeout(() => setMessage(""), 3000);
-    } catch (err) { setError("Save failed"); } 
-    finally { setLoading(false); }
+    } catch (err) { 
+      setError(err.response?.data?.message || "Failed to save batch."); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleEdit = (batch) => {
@@ -96,87 +100,165 @@ function CreateBatch() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Mark as Inactive?")) return;
+    if (!window.confirm("Are you sure you want to remove this batch?")) return;
     try {
-      await axios.delete(`${API_BASE}/batches/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await api.delete(`/admin/batches/${id}`);
       fetchBatches();
-    } catch (err) { alert("Delete failed"); }
+    } catch (err) { alert("Delete operation failed."); }
   };
 
-  const filteredBatches = batches.filter(b => 
-    b.batchName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.course?.courseName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.trainer?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // PROPER SEARCH LOGIC: Filter by Name, Course, or Trainer
+  const filteredBatches = batches.filter(b => {
+    const search = searchTerm.toLowerCase();
+    return (
+      b.batchName?.toLowerCase().includes(search) ||
+      b.course?.courseName?.toLowerCase().includes(search) ||
+      b.trainer?.name?.toLowerCase().includes(search)
+    );
+  });
+
+  const totalPages = Math.ceil(filteredBatches.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentBatches = filteredBatches.slice(indexOfFirstItem, indexOfLastItem);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   return (
-    <div className="assign-layout">
-      <div className="assign-form">
-        <h2>{editingId ? "Update Batch" : "Create Batch"}</h2>
-        {message && <p className="success-message">{message}</p>}
-        {error && <p className="error-message">{error}</p>}
-        <div className="form-group">
-          <label>Batch Name</label>
-          <input type="text" value={batchName} onChange={(e) => setBatchName(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Course</label>
-          <select value={courseId} onChange={(e) => setCourseId(e.target.value)}>
-            <option value="">-- Course --</option>
-            {courses.map(c => <option key={c.id} value={c.id}>{c.courseName}</option>)}
-          </select>
-        </div>
-        <div className="form-group">
-          <label>Trainer</label>
-          <select value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
-            <option value="">-- Trainer --</option>
-            {trainers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-        </div>
-        <div className="form-row">
-          <div className="form-group"><label>Start</label><input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></div>
-          <div className="form-group"><label>End</label><input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
-        </div>
-        <div className="form-group">
-          <label>Status</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="ONGOING">ONGOING</option>
-            <option value="COMPLETED">COMPLETED</option>
-            <option value="INACTIVE">INACTIVE</option>
-          </select>
-        </div>
-        <button className="assign-btn" onClick={handleSubmit} disabled={loading}>{loading ? "Saving..." : "Save Batch"}</button>
-        {editingId && <button className="cancel-btn" onClick={resetForm}>Cancel</button>}
-      </div>
-
-      <div className="assign-list">
-        <div className="list-header">
-          <h3>All Batches</h3>
-          <div className="search-box">
-            <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+    <div className="batch-page-container">
+      <div className="batch-main-layout">
+        
+        {/* LEFT CARD: FORM */}
+        <div className="left-form-card">
+          <div className="form-header">
+            <h2>{editingId ? "Update Batch" : "Create New Batch"}</h2>
+            <p className="form-subtitle">Assign courses and trainers to schedules</p>
           </div>
-        </div>
-        <div className="scroll-area">
-          {filteredBatches.map(batch => (
-            <div key={batch.id} className="course-block">
-              <div className="header-flex">
-                <h4>{batch.batchName}</h4>
-                <span className={`status-badge ${batch.status?.toLowerCase()}`}>{batch.status}</span>
+
+          <form className="form-body" onSubmit={handleSubmit}>
+            {message && <div className="batch-alert success">{message}</div>}
+            {error && <div className="batch-alert error">{error}</div>}
+
+            <div className="input-box">
+              <label>Batch Name</label>
+              <input 
+                type="text" 
+                placeholder="e.g. Java Fullstack - Jan" 
+                value={batchName} 
+                onChange={(e) => setBatchName(e.target.value)} 
+              />
+            </div>
+
+            <div className="input-box">
+              <label>Course</label>
+              <select value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+                <option value="">-- Select Course --</option>
+                {courses.map(c => <option key={c.id} value={c.id}>{c.courseName}</option>)}
+              </select>
+            </div>
+
+            <div className="input-box">
+              <label>Trainer</label>
+              <select value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
+                <option value="">-- Select Trainer --</option>
+                {trainers.map(t => (
+                  <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="input-flex-row">
+              <div className="input-box">
+                <label>Start Date</label>
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               </div>
-              <p><strong>Course:</strong> {batch.course?.courseName}</p>
-              <p><strong>Trainer:</strong> {batch.trainer?.name}</p>
-              <p>📅 {batch.startDate} to {batch.endDate}</p>
-              <div className="card-actions-row">
-                <button className="edit-action-btn" onClick={() => handleEdit(batch)}>
-                  ✏️ Edit
-                </button>
-                <button className="delete-action-btn" onClick={() => handleDelete(batch.id)}>
-                  🗑 Delete
-                </button>
+              <div className="input-box">
+                <label>End Date</label>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
             </div>
-          ))}
+
+            <div className="input-box">
+              <label>Status</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="ONGOING">ONGOING</option>
+                <option value="COMPLETED">COMPLETED</option>
+                <option value="INACTIVE">INACTIVE</option>
+              </select>
+            </div>
+
+            <div className="form-footer">
+              <button type="submit" className="btn-primary-batch" disabled={loading}>
+                {loading ? "Processing..." : editingId ? "Update Batch" : "Save Batch"}
+              </button>
+              {editingId && (
+                <button type="button" className="btn-cancel-batch" onClick={resetForm}>Cancel</button>
+              )}
+            </div>
+          </form>
         </div>
+
+        {/* RIGHT SECTION: DIRECTORY (STRICTLY NO SCROLL) */}
+        <div className="right-directory-card">
+          <div className="directory-header">
+            <div className="header-text">
+              <h3>Batch Directory</h3>
+              <span className="entry-count">{filteredBatches.length} Total</span>
+            </div>
+
+            <div className="header-actions">
+              <div className="search-bar">
+                <FaSearch className="search-icon" />
+                <input 
+                  type="text" 
+                  placeholder="Search by name, course..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                />
+              </div>
+
+              {totalPages > 1 && (
+                <div className="pagination-controls">
+                  <button disabled={currentPage === 1} onClick={() => paginate(currentPage - 1)}>
+                    <FaChevronLeft />
+                  </button>
+                  <span className="page-indicator">{currentPage} of {totalPages}</span>
+                  <button disabled={currentPage === totalPages} onClick={() => paginate(currentPage + 1)}>
+                    <FaChevronRight />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="directory-list-static">
+            {currentBatches.length > 0 ? (
+              currentBatches.map(batch => (
+                <div key={batch.id} className="batch-card-item">
+                  <div className="card-top">
+                    <h4>{batch.batchName}</h4>
+                    <span className={`status-tag ${batch.status?.toLowerCase()}`}>{batch.status}</span>
+                  </div>
+                  
+                  <div className="card-info-grid">
+                    <div className="info-item"><FaBook /> {batch.course?.courseName}</div>
+                    <div className="info-item"><FaUserTie /> {batch.trainer?.name}</div>
+                    <div className="info-item"><FaCalendarAlt /> {batch.startDate} to {batch.endDate}</div>
+                    <div className="info-item"><FaEnvelope /> <small>{batch.trainer?.email}</small></div>
+                  </div>
+
+                  <div className="card-actions">
+                    <button onClick={() => handleEdit(batch)} className="edit-act"><FaEdit /> Edit</button>
+                    <button onClick={() => handleDelete(batch.id)} className="delete-act"><FaTrashAlt /> Inactivate</button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="no-data">No batches found matching your search.</div>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   );
