@@ -10,12 +10,12 @@ function CreateBatch() {
   const [batchName, setBatchName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [courseId, setCourseId] = useState("");
+  
   const [trainerId, setTrainerId] = useState("");
   const [status, setStatus] = useState("ONGOING");
   
   const [batches, setBatches] = useState([]);
-  const [courses, setCourses] = useState([]);
+
   const [trainers, setTrainers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState(null);
@@ -26,23 +26,23 @@ function CreateBatch() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4; 
 
+  const today = new Date().toISOString().split("T")[0];
+
   useEffect(() => {
     fetchInitialData();
   }, []);
 
-  // Reset to first page whenever search term changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
   const fetchInitialData = async () => {
     try {
-      const [courseRes, trainerRes, batchRes] = await Promise.all([
-        api.get("/admin/courses"),
+      const [trainerRes, batchRes] = await Promise.all([
         api.get("/admin/trainers"),
         api.get("/admin/batches")
       ]);
-      setCourses(courseRes.data);
+    
       setTrainers(trainerRes.data);
       setBatches(batchRes.data);
     } catch (err) {
@@ -58,18 +58,41 @@ function CreateBatch() {
   };
 
   const resetForm = () => {
-    setBatchName(""); setStartDate(""); setEndDate(""); setCourseId(""); setTrainerId("");
-    setStatus("ONGOING"); setEditingId(null); setError(""); setMessage("");
+    setBatchName(""); 
+    setStartDate(""); 
+    setEndDate(""); 
+    setTrainerId("");
+    setStatus("ONGOING"); 
+    setEditingId(null); 
+    setError(""); 
+    setMessage("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!batchName || !startDate || !endDate || !courseId || !trainerId) {
+
+    /* ===== DATE VALIDATION START ===== */
+
+    if (!batchName || !startDate || !endDate || !trainerId) {
       return setError("Please fill all required fields.");
     }
-    setLoading(true); setMessage(""); setError("");
 
-    const payload = { batchName, startDate, endDate, courseId, trainerId, status };
+    if (startDate < today) {
+      return setError("Start date cannot be before today.");
+    }
+
+    if (endDate < startDate) {
+      return setError("End date cannot be before start date.");
+    }
+
+    /* ===== DATE VALIDATION END ===== */
+
+    setLoading(true); 
+    setMessage(""); 
+    setError("");
+
+    const payload = { batchName, startDate, endDate, trainerId, status };
+
     try {
       if (editingId) {
         await api.put(`/admin/batches/${editingId}`, payload);
@@ -78,9 +101,12 @@ function CreateBatch() {
         await api.post("/admin/create-batch", payload);
         setMessage("Batch created successfully!");
       }
+
       resetForm(); 
       fetchBatches();
+
       setTimeout(() => setMessage(""), 3000);
+
     } catch (err) { 
       setError(err.response?.data?.message || "Failed to save batch."); 
     } finally { 
@@ -93,7 +119,6 @@ function CreateBatch() {
     setBatchName(batch.batchName);
     setStartDate(batch.startDate);
     setEndDate(batch.endDate);
-    setCourseId(batch.course?.id || "");
     setTrainerId(batch.trainer?.id || "");
     setStatus(batch.status || "ONGOING");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -107,12 +132,10 @@ function CreateBatch() {
     } catch (err) { alert("Delete operation failed."); }
   };
 
-  // PROPER SEARCH LOGIC: Filter by Name, Course, or Trainer
   const filteredBatches = batches.filter(b => {
     const search = searchTerm.toLowerCase();
     return (
       b.batchName?.toLowerCase().includes(search) ||
-      b.course?.courseName?.toLowerCase().includes(search) ||
       b.trainer?.name?.toLowerCase().includes(search)
     );
   });
@@ -128,11 +151,10 @@ function CreateBatch() {
     <div className="batch-page-container">
       <div className="batch-main-layout">
         
-        {/* LEFT CARD: FORM */}
         <div className="left-form-card">
           <div className="form-header">
             <h2>{editingId ? "Update Batch" : "Create New Batch"}</h2>
-            <p className="form-subtitle">Assign courses and trainers to schedules</p>
+            <p className="form-subtitle">Create Bathes</p>
           </div>
 
           <form className="form-body" onSubmit={handleSubmit}>
@@ -150,14 +172,6 @@ function CreateBatch() {
             </div>
 
             <div className="input-box">
-              <label>Course</label>
-              <select value={courseId} onChange={(e) => setCourseId(e.target.value)}>
-                <option value="">-- Select Course --</option>
-                {courses.map(c => <option key={c.id} value={c.id}>{c.courseName}</option>)}
-              </select>
-            </div>
-
-            <div className="input-box">
               <label>Trainer</label>
               <select value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
                 <option value="">-- Select Trainer --</option>
@@ -170,11 +184,21 @@ function CreateBatch() {
             <div className="input-flex-row">
               <div className="input-box">
                 <label>Start Date</label>
-                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <input 
+                  type="date" 
+                  value={startDate} 
+                  onChange={(e) => setStartDate(e.target.value)}
+                  min={today}
+                />
               </div>
               <div className="input-box">
                 <label>End Date</label>
-                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <input 
+                  type="date" 
+                  value={endDate} 
+                  onChange={(e) => setEndDate(e.target.value)}
+                  min={startDate || today}
+                />
               </div>
             </div>
 
@@ -198,7 +222,7 @@ function CreateBatch() {
           </form>
         </div>
 
-        {/* RIGHT SECTION: DIRECTORY (STRICTLY NO SCROLL) */}
+        {/* RIGHT DIRECTORY (UNCHANGED) */}
         <div className="right-directory-card">
           <div className="directory-header">
             <div className="header-text">
@@ -211,7 +235,7 @@ function CreateBatch() {
                 <FaSearch className="search-icon" />
                 <input 
                   type="text" 
-                  placeholder="Search by name, course..." 
+                  placeholder="Search by name, batch.." 
                   value={searchTerm} 
                   onChange={(e) => setSearchTerm(e.target.value)} 
                 />
@@ -241,7 +265,6 @@ function CreateBatch() {
                   </div>
                   
                   <div className="card-info-grid">
-                    <div className="info-item"><FaBook /> {batch.course?.courseName}</div>
                     <div className="info-item"><FaUserTie /> {batch.trainer?.name}</div>
                     <div className="info-item"><FaCalendarAlt /> {batch.startDate} to {batch.endDate}</div>
                     <div className="info-item"><FaEnvelope /> <small>{batch.trainer?.email}</small></div>

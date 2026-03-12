@@ -3,14 +3,14 @@ import axios from "../../api/axiosConfig";
 import "./AdminScheduleClass.css";
 
 function AdminScheduleClass() {
-  const [courses, setCourses] = useState([]);
+
   const [batches, setBatches] = useState([]);
   const [schedule, setSchedule] = useState([]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState(null);
 
   const [formData, setFormData] = useState({
-    courseId: "",
     batchId: "",
     startDate: "",
     endDate: "",
@@ -25,87 +25,95 @@ function AdminScheduleClass() {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const today = new Date().toISOString().split("T")[0];
+
   useEffect(() => {
-    fetchCourses();
+    fetchBatches();
     fetchSchedule();
   }, []);
 
-  const fetchCourses = async () => {
+  const fetchBatches = async () => {
     try {
-      const res = await axios.get("/admin/courses"); 
-      setCourses(res.data);
-    } catch (err) { console.error(err); }
-  };
 
-  const fetchBatchesByCourse = async (courseId) => {
-    try {
-      const res = await axios.get(`/admin/batches/course/${courseId}`);
-      setBatches(res.data);
-    } catch (err) { setBatches([]); }
+      const res = await axios.get("/admin/batches");
+
+      const activeBatches = res.data.filter(
+        b => b.status === "ONGOING" || b.status === "ACTIVE"
+      );
+
+      setBatches(activeBatches);
+
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchSchedule = async () => {
     try {
       const res = await axios.get("/admin/schedule-classes");
       setSchedule(res.data);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const convertTo24Hour = (time, period) => {
+
     let [hours, minutes] = time.split(":");
     hours = parseInt(hours, 10);
 
     if (period === "PM" && hours < 12) hours += 12;
     if (period === "AM" && hours === 12) hours = 0;
 
-    return `${hours.toString().padStart(2, '0')}:${minutes}:00`;
+    return `${hours.toString().padStart(2, "0")}:${minutes}:00`;
   };
 
   const formatTo12Hour = (time) => {
+
     if (!time) return "";
 
     const parts = time.split(":");
+
     let hour = parseInt(parts[0], 10);
 
     const ampm = hour >= 12 ? "PM" : "AM";
+
     hour = hour % 12 || 12;
 
     return `${hour}:${parts[1]} ${ampm}`;
   };
 
   const resetForm = () => {
+
     setEditingId(null);
-    setFormData({ 
-      courseId: "", 
-      batchId: "", 
-      startDate: "", 
-      endDate: "", 
-      startTime: "09:00", 
-      startPeriod: "AM", 
-      endTime: "10:00", 
-      endPeriod: "AM", 
-      status: "ACTIVE" 
+
+    setFormData({
+      batchId: "",
+      startDate: "",
+      endDate: "",
+      startTime: "09:00",
+      startPeriod: "AM",
+      endTime: "10:00",
+      endPeriod: "AM",
+      status: "ACTIVE"
     });
   };
 
   const handleChange = (e) => {
+
     const { name, value } = e.target;
 
-    setFormData({ ...formData, [name]: value });
-
-    if (name === "courseId") {
-      fetchBatchesByCourse(value);
-      setFormData(prev => ({ ...prev, courseId: value, batchId: "" }));
-    }
+    setFormData({
+      ...formData,
+      [name]: value
+    });
   };
 
   const handleEdit = (s) => {
+
     setEditingId(s.id);
 
-    fetchBatchesByCourse(s.course.id);
-
     setFormData({
-      courseId: s.course.id,
       batchId: s.batch.id,
       startDate: s.startDate,
       endDate: s.endDate || s.startDate,
@@ -118,10 +126,35 @@ function AdminScheduleClass() {
   };
 
   const handleSubmit = async (e) => {
+
     e.preventDefault();
 
     setErrorMsg("");
     setSuccessMsg("");
+
+    /* ===== DATE VALIDATION START ===== */
+
+    if (!formData.startDate) {
+      setErrorMsg("Start date is required.");
+      return;
+    }
+
+    if (formData.startDate < today) {
+      setErrorMsg("Start date cannot be before today.");
+      return;
+    }
+
+    if (!formData.endDate) {
+      setErrorMsg("End date is required.");
+      return;
+    }
+
+    if (formData.endDate < formData.startDate) {
+      setErrorMsg("End date cannot be before start date.");
+      return;
+    }
+
+    /* ===== DATE VALIDATION END ===== */
 
     try {
 
@@ -132,12 +165,11 @@ function AdminScheduleClass() {
       );
 
       const payload = {
-        courseId: formData.courseId,
+
         batchId: formData.batchId,
         trainerId: selectedBatch?.trainer?.id || "",
-        startDate: formData.startDate,
 
-        /* ✅ FIX: Added endDate */
+        startDate: formData.startDate,
         endDate: formData.endDate,
 
         startTime: convertTo24Hour(
@@ -174,25 +206,20 @@ function AdminScheduleClass() {
       }
 
       resetForm();
-
       fetchSchedule();
-
-      window.dispatchEvent(new Event("batchStatusUpdated"));
 
       setTimeout(() => setSuccessMsg(""), 3000);
 
     } catch (err) {
 
-  if (err.response && err.response.data) {
-    setErrorMsg(err.response.data);
-  } else {
-    setErrorMsg("Failed to save schedule.");
-  }
+      if (err.response && err.response.data) {
+        setErrorMsg(err.response.data);
+      } else {
+        setErrorMsg("Failed to save schedule.");
+      }
 
-} finally {
-
+    } finally {
       setLoading(false);
-
     }
   };
 
@@ -201,14 +228,13 @@ function AdminScheduleClass() {
     const term = searchTerm.toLowerCase();
 
     return (
-      (s.course?.course_name || "").toLowerCase().includes(term) ||
       (s.batch?.batch_name || "").toLowerCase().includes(term) ||
       (s.trainer?.trainer_name || "").toLowerCase().includes(term)
     );
-
   });
 
   return (
+
     <div className="assign-layout">
 
       <div className="assign-form">
@@ -229,28 +255,6 @@ function AdminScheduleClass() {
 
           <div className="form-group">
 
-            <label>Course</label>
-
-            <select
-              name="courseId"
-              className="custom-select"
-              value={formData.courseId}
-              onChange={handleChange}
-            >
-              <option value="">-- Select Course --</option>
-
-              {courses.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.courseName}
-                </option>
-              ))}
-
-            </select>
-
-          </div>
-
-          <div className="form-group">
-
             <label>Batch</label>
 
             <select
@@ -258,14 +262,16 @@ function AdminScheduleClass() {
               className="custom-select"
               value={formData.batchId}
               onChange={handleChange}
-              disabled={!formData.courseId}
             >
-              <option value="">-- Select Batch --</option>
+
+              <option value="">-- Select Active Batch --</option>
 
               {batches.map(b => (
+
                 <option key={b.id} value={b.id}>
                   {b.batchName}
                 </option>
+
               ))}
 
             </select>
@@ -275,6 +281,7 @@ function AdminScheduleClass() {
           <div className="form-row">
 
             <div className="form-group">
+
               <label>Start Date</label>
 
               <input
@@ -282,10 +289,13 @@ function AdminScheduleClass() {
                 name="startDate"
                 value={formData.startDate}
                 onChange={handleChange}
+                min={today}
               />
+
             </div>
 
             <div className="form-group">
+
               <label>End Date</label>
 
               <input
@@ -293,7 +303,9 @@ function AdminScheduleClass() {
                 name="endDate"
                 value={formData.endDate}
                 onChange={handleChange}
+                min={formData.startDate || today}
               />
+
             </div>
 
           </div>
@@ -311,7 +323,6 @@ function AdminScheduleClass() {
                   name="startTime"
                   value={formData.startTime}
                   onChange={handleChange}
-                  placeholder="09:00"
                 />
 
                 <select
@@ -338,7 +349,6 @@ function AdminScheduleClass() {
                   name="endTime"
                   value={formData.endTime}
                   onChange={handleChange}
-                  placeholder="10:00"
                 />
 
                 <select
@@ -355,27 +365,6 @@ function AdminScheduleClass() {
             </div>
 
           </div>
-
-          {editingId && (
-            <div className="form-group">
-
-              <label>Status</label>
-
-              <select
-                name="status"
-                className="custom-select"
-                value={formData.status}
-                onChange={handleChange}
-              >
-
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="COMPLETED">COMPLETED</option>
-                <option value="INACTIVE">INACTIVE</option>
-
-              </select>
-
-            </div>
-          )}
 
         </div>
 
@@ -396,12 +385,14 @@ function AdminScheduleClass() {
           </button>
 
           {editingId && (
+
             <button
               className="cancel-edit-btn"
               onClick={resetForm}
             >
               Cancel Edit
             </button>
+
           )}
 
         </div>
@@ -419,7 +410,7 @@ function AdminScheduleClass() {
             <input
               type="text"
               className="list-search-input"
-              placeholder="Search by course, batch, or trainer..."
+              placeholder="Search batch or trainer..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -434,15 +425,11 @@ function AdminScheduleClass() {
 
             <div key={s.id} className="course-block">
 
-              <span className={`status-badge ${s.status?.toLowerCase() || 'active'}`}>
+              <span className={`status-badge ${s.status?.toLowerCase() || "active"}`}>
                 {s.status || "ACTIVE"}
               </span>
 
-              <h4>{s.course?.course_name}</h4>
-
-              <p>
-                <strong>Batch:</strong> {s.batch?.batch_name}
-              </p>
+              <h4>{s.batch?.batch_name}</h4>
 
               <p>
                 <strong>Trainer:</strong> {s.trainer?.trainer_name}
@@ -472,6 +459,7 @@ function AdminScheduleClass() {
       </div>
 
     </div>
+
   );
 }
 

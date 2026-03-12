@@ -130,13 +130,7 @@ function TrainerDashboard() {
 
           <section className="stats-container">
 
-            <div className="stat-card orange">
-              <div className="stat-icon-box"><FaBook /></div>
-              <div className="stat-data">
-                <label>Total Courses</label>
-                <h2>{stats.totalCourses}</h2>
-              </div>
-            </div>
+           
 
             <div className="stat-card blue">
               <div className="stat-icon-box"><FaBook /></div>
@@ -228,8 +222,8 @@ function TrainerDashboard() {
                         <div className="timeline-content">
 
                           <div className="content-top">
-                            <h4>{item.course_name}</h4>
-                            <span className="batch-tag">{item.batch_name}</span>
+                            <h4>{item.batch_name}</h4>
+                           
                           </div>
 
                           <p>

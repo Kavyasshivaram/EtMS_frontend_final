@@ -184,3 +184,29 @@
 
 .cd-empty-state { text-align: center; padding: 4rem 2rem; color: #64748b; }
 .cd-empty-icon { font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem; }
+/* VIEW SYLLABUS BUTTON */
+.cd-view-btn{
+  display:inline-block;
+  padding:10px 16px;
+  background:var(--blue-primary);
+  color:white;
+  text-decoration:none;
+  font-size:0.85rem;
+  font-weight:600;
+  border-radius:8px;
+  transition:all 0.2s ease;
+}
+
+.cd-view-btn:hover{
+  background:#2563eb;
+  transform:translateY(-1px);
+}
+
+/* FIX PHONE COLOR */
+.cd-phone-link{
+  color:#334155 !important;
+}
+
+.cd-phone-link:hover{
+  color:var(--blue-primary) !important;
+}

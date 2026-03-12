@@ -14,8 +14,6 @@ function TrainerAttendance() {
   const trainerName = user?.name || "Rajesh Kumar";
   const today = new Date().toISOString().split("T")[0];
 
-  const [courses, setCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState("");
   const [batches, setBatches] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState("");
   const [students, setStudents] = useState([]);
@@ -36,40 +34,34 @@ function TrainerAttendance() {
   const recordsPerPage = 10;
 
   useEffect(() => {
-    if (trainerId) fetchCourses();
+    if (trainerId) fetchActiveBatches();
   }, [trainerId]);
 
   useEffect(() => {
     if (viewMode === "MARK" && selectedBatch && date) {
-      checkExistingAttendance();
+      fetchBatchStudents();
     }
-    setCurrentPage(1); // Reset page on mode/batch change
+    setCurrentPage(1);
   }, [selectedBatch, date, viewMode]);
 
-  const fetchCourses = async () => {
+  const fetchActiveBatches = async () => {
     try {
-      const res = await api.get(`/teacher/courses/${trainerId}`);
-      setCourses(res.data);
-    } catch (err) { console.error("Course fetch failed", err); }
-  };
-
-  const handleCourseChange = async (courseId) => {
-    setSelectedCourse(courseId);
-    setSelectedBatch("");
-    setStudents([]);
-    if (!courseId) return;
-    try {
-      const res = await api.get(`/teacher/courses/${trainerId}/${courseId}/batches`);
+      const res = await api.get(`/teacher/active-batches/${trainerId}`);
       setBatches(res.data);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error("Failed to fetch active batches", err);
+    }
   };
 
-  const checkExistingAttendance = async () => {
+  const fetchBatchStudents = async () => {
     setLoading(true);
     try {
+      // First, check if attendance exists for this batch & date
       const res = await api.get(`/teacher/attendance/check?batchId=${selectedBatch}&date=${date}`);
       if (res.data && res.data.length > 0) {
-        setStudents(res.data.map(item => ({
+        // Existing attendance found, enable edit
+        const uniqueStudents = Array.from(new Map(res.data.map(s => [s.studentId, s])).values());
+        setStudents(uniqueStudents.map(item => ({
           id: item.studentId,
           name: item.studentName || "Student",
           email: item.studentEmail || item.email || "N/A",
@@ -81,15 +73,19 @@ function TrainerAttendance() {
       } else {
         setIsEditMode(false);
         setTopicTaught("");
-        const freshRes = await api.get(`/teacher/batches/${selectedBatch}/students`);
-        setStudents(freshRes.data.map(s => ({
+        // Fetch batch students
+        const studentRes = await api.get(`/teacher/batches/${selectedBatch}/students`);
+        const uniqueStudents = Array.from(new Map(studentRes.data.map(s => [s.id, s])).values());
+        setStudents(uniqueStudents.map(s => ({
           ...s,
           email: s.email || "N/A",
           status: "PRESENT",
           attendanceId: null
         })));
       }
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) {
+      console.error(err);
+    } finally { setLoading(false); }
   };
 
   const fetchAttendanceHistory = async () => {
@@ -123,21 +119,19 @@ function TrainerAttendance() {
     try {
       await api.post("/teacher/attendance/bulk", payload);
       alert(isEditMode ? "Records Updated ✅" : "Attendance Saved ✅");
-      checkExistingAttendance();
+      fetchBatchStudents();
     } catch (err) { alert("Save failed"); }
   };
 
-  // Search Logic
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset to first page when searching
+    setCurrentPage(1);
   };
 
   const filteredData = viewMode === "MARK" 
     ? students.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
     : attendanceHistory.filter(h => h.studentName.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  // Pagination Logic
   const indexOfLastRecord = currentPage * recordsPerPage;
   const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
   const currentRecords = filteredData.slice(indexOfFirstRecord, indexOfLastRecord);
@@ -206,13 +200,6 @@ function TrainerAttendance() {
               <div className="card-section">
                 <h3 className="section-title"><FaFilter /> Class Selection</h3>
                 <div className="input-group">
-                  <label>Course Catalog</label>
-                  <select value={selectedCourse} onChange={(e) => handleCourseChange(e.target.value)}>
-                    <option value="">Select Course</option>
-                    {courses.map(c => <option key={c.courseId} value={c.courseId}>{c.courseName}</option>)}
-                  </select>
-                </div>
-                <div className="input-group">
                   <label>Active Batch</label>
                   <select value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)}>
                     <option value="">Select Batch</option>
@@ -261,7 +248,6 @@ function TrainerAttendance() {
                     <tr>
                       <th>Date</th>
                       <th>Student Name</th>
-                   
                       <th>Topic</th>
                       <th className="center-text">Status</th>
                     </tr>
@@ -294,9 +280,9 @@ function TrainerAttendance() {
                           </>
                         ) : (
                           <>
+
                             <td className="date-col">{item.attendanceDate}</td>
                             <td className="name">{item.studentName}</td>
-                    
                             <td className="topic-text">{item.topic}</td>
                             <td className="center-text">
                               <span className={`status-text-badge ${item.status.toLowerCase()}`}>{item.status}</span>
@@ -310,7 +296,6 @@ function TrainerAttendance() {
               </table>
             </div>
 
-            {/* Pagination UI */}
             {!loading && totalPages > 1 && (
               <div className="pagination-wrapper">
                 <div className="pagination-info">
