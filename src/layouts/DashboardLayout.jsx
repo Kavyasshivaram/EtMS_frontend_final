@@ -130,7 +130,7 @@ function DashboardLayout() {
                 </button>
                 {activeDropdown === 'trainer' && (
                   <div className="dropdown-content">
-                    <NavLink to="/trainer/course" onClick={() => setActiveDropdown(null)}>📚 My Courses</NavLink>
+                    <NavLink to="/trainer/course" onClick={() => setActiveDropdown(null)}>📚 My Bathes</NavLink>
                     <NavLink to="/trainer/attendance" onClick={() => setActiveDropdown(null)}>🗓 Attendance</NavLink>
                     <NavLink to="/trainer/assignments" onClick={() => setActiveDropdown(null)}>📝 Assignments</NavLink>
                     <NavLink to="/trainer/materials" onClick={() => setActiveDropdown(null)}>📂 Study Materials</NavLink>
@@ -164,7 +164,7 @@ function DashboardLayout() {
                   </button>
                   {activeDropdown === 'st-learn' && (
                     <div className="dropdown-content">
-                      <NavLink to="/student/courses" onClick={() => setActiveDropdown(null)}>📚 My Courses</NavLink>
+                      <NavLink to="/student/courses" onClick={() => setActiveDropdown(null)}>📚 My Courses and Batches</NavLink>
                       <NavLink to="/student/attendance" onClick={() => setActiveDropdown(null)}>🗓 Attendance</NavLink>
                       <NavLink to="/student/assignments" onClick={() => setActiveDropdown(null)}>📝 Assignments</NavLink>
                       <NavLink to="/student/results" onClick={() => setActiveDropdown(null)}>📊 Results</NavLink>
@@ -194,9 +194,16 @@ function DashboardLayout() {
               <span className="role-text-label">{user?.role?.replace("_", " ")}</span>
               <div className="avatar-circle">{avatarLetter}</div>
             </div>
-            <button className="nav-logout-btn" onClick={handleLogout}>
+            {/* <button className="nav-logout-btn" onClick={handleLogout}>
               <FaSignOutAlt /> Logout
-            </button>
+            </button> */}
+            {/* ── LOGOUT: clears activity so next login starts fresh ── */}
+                <button className="sd-drop-btn sd-drop-btn--danger" onClick={() => {
+                  handleLogout();
+                  clearSessionActivity();   // wipe THIS session's activity
+                  localStorage.clear();
+                  navigate("/login");
+                }}>🚪 Logout</button>
           </div>
         </div>
       </header>

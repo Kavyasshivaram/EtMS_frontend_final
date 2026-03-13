@@ -1,303 +1,486 @@
 import { useEffect, useState, useRef } from "react";
-import api from "../../api/axiosConfig"; 
-
+import api from "../../api/axiosConfig";
 import "./CreateCourse.css";
 
 const API_BASE = "/admin";
+const PAGE_SIZE = 4;
 
 function CreateCourse() {
   const [courseName, setCourseName] = useState("");
-  const [duration, setDuration] = useState("");
+  const [duration, setDuration]     = useState("");
   const [description, setDescription] = useState("");
-  const [file, setFile] = useState(null);
-  
-  // Used to reset the file input field physically
-  const fileInputRef = useRef(null);
+  const [file, setFile]             = useState(null);
+  const fileInputRef                = useRef(null);
 
-  const [courses, setCourses] = useState([]);
+  const [courses,         setCourses]         = useState([]);
   const [inactiveCourses, setInactiveCourses] = useState([]);
-  const [viewMode, setViewMode] = useState("ACTIVE");
+  const [viewMode,        setViewMode]        = useState("ACTIVE");
+  const [searchTerm,      setSearchTerm]      = useState("");
+  const [editingId,       setEditingId]       = useState(null);
+  const [message,         setMessage]         = useState("");
+  const [error,           setError]           = useState("");
+  const [loading,         setLoading]         = useState(false);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [editingId, setEditingId] = useState(null);
-
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  /* pagination */
+  const [currentPage, setCurrentPage] = useState(1);
 
   const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    fetchCourses();
-  }, []);
+  useEffect(() => { fetchCourses(); }, []);
 
+  /* reset page when view or search changes */
+  useEffect(() => { setCurrentPage(1); }, [viewMode, searchTerm]);
+
+  /* ── API calls (unchanged) ── */
   const fetchCourses = async () => {
     try {
-      const activeRes = await api.get(`${API_BASE}/courses`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      const inactiveRes = await api.get(`${API_BASE}/courses/inactive`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
+      const [activeRes, inactiveRes] = await Promise.all([
+        api.get(`${API_BASE}/courses`,          { headers: { Authorization: `Bearer ${token}` } }),
+        api.get(`${API_BASE}/courses/inactive`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
       setCourses(activeRes.data);
       setInactiveCourses(inactiveRes.data);
-    } catch (err) {
-      setError("Failed to load courses.");
-    }
+    } catch { setError("Failed to load courses."); }
   };
 
   const resetForm = () => {
-    setCourseName("");
-    setDuration("");
-    setDescription("");
-    setFile(null);
-    setEditingId(null);
-    setError("");
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Clear the actual input
-    }
+    setCourseName(""); setDuration(""); setDescription("");
+    setFile(null); setEditingId(null); setError("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setMessage("");
-
-    if (!courseName || !duration || description.length < 10) {
+    setError(""); setMessage("");
+    if (!courseName || !duration || description.length < 10)
       return setError("Please fill all fields correctly (Description min 10 chars).");
-    }
-
     try {
       setLoading(true);
-
       const formData = new FormData();
-      formData.append("courseName", courseName);
-      formData.append("duration", duration);
-      formData.append("description", description);
-
-      if (file) {
-        formData.append("file", file);
-      }
-
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data"
-        }
-      };
-
+      formData.append("courseName",   courseName);
+      formData.append("duration",     duration);
+      formData.append("description",  description);
+      if (file) formData.append("file", file);
+      const config = { headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" } };
       if (editingId) {
-        // Use 'api' instance instead of 'axios'
         await api.put(`${API_BASE}/courses/${editingId}`, formData, config);
         setMessage("Course updated successfully!");
       } else {
-        // Use 'api' instance instead of 'axios'
         await api.post(`${API_BASE}/course`, formData, config);
         setMessage("Course created successfully!");
       }
-
-      resetForm();
-      fetchCourses();
+      resetForm(); fetchCourses();
       setTimeout(() => setMessage(""), 3000);
-
     } catch (err) {
-      setError(
-        err.response?.data?.message || err.response?.data || "Operation failed."
-      );
-    } finally {
-      setLoading(false);
-    }
+      setError(err.response?.data?.message || err.response?.data || "Operation failed.");
+    } finally { setLoading(false); }
   };
 
   const handleEdit = (course) => {
-    setEditingId(course.id);
-    setCourseName(course.courseName);
-    setDuration(course.duration);
-    setDescription(course.description);
-    // Note: We don't set the file here because you can't "pre-fill" an <input type="file" />
+    setEditingId(course.id); setCourseName(course.courseName);
+    setDuration(course.duration); setDescription(course.description);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Mark this course as inactive?")) return;
     try {
-      await api.delete(`${API_BASE}/courses/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setMessage("Course marked as Inactive.");
-      fetchCourses();
-    } catch (err) {
-      setError("Failed to delete course.");
-    }
+      await api.delete(`${API_BASE}/courses/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setMessage("Course marked as Inactive."); fetchCourses();
+    } catch { setError("Failed to delete course."); }
   };
 
   const handleReactivate = async (id) => {
     try {
-      await api.put(`${API_BASE}/courses/reactivate/${id}`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setMessage("Course reactivated successfully.");
-      fetchCourses();
-    } catch (err) {
-      setError("Failed to reactivate course.");
-    }
+      await api.put(`${API_BASE}/courses/reactivate/${id}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      setMessage("Course reactivated successfully."); fetchCourses();
+    } catch { setError("Failed to reactivate course."); }
   };
 
-  const displayedCourses = viewMode === "ACTIVE" ? courses : inactiveCourses;
-
-  const filteredCourses = displayedCourses.filter((course) =>
-    course.courseName?.toLowerCase().includes(searchTerm.toLowerCase())
+  /* ── derived list with pagination ── */
+  const displayedCourses  = viewMode === "ACTIVE" ? courses : inactiveCourses;
+  const filteredCourses   = displayedCourses.filter(c =>
+    c.courseName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  const totalPages  = Math.max(1, Math.ceil(filteredCourses.length / PAGE_SIZE));
+  const pagedCourses = filteredCourses.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
   );
 
+  /* duration icon helper */
+  const durIcon = (d = "") => {
+    if (d.includes("Month") && parseInt(d) <= 1) return "🗓️";
+    if (d.includes("Month")) return "📆";
+    return "🏆";
+  };
+
   return (
-    <div className="assign-layout">
-      {/* LEFT FORM */}
-      <div className="assign-form">
-        <h2>{editingId ? "Edit Course" : "Create New Course"}</h2>
+    <div className="cc-page">
 
-        {message && <p className="success-message">{message}</p>}
-        {error && <p className="error-message">{error}</p>}
-
-        <div className="form-group">
-          <label>Course Name</label>
-          <input
-            type="text"
-            value={courseName}
-            onChange={(e) => setCourseName(e.target.value)}
-            placeholder="Enter course name"
-          />
+      {/* ════════ PAGE HEADER ════════ */}
+      <div className="cc-page-header">
+        <div className="cc-page-header__left">
+          <div className="cc-page-header__icon">📚</div>
+          <div>
+            <h1 className="cc-page-header__title">Course Management</h1>
+            <p className="cc-page-header__sub">Create, edit and manage your course catalogue</p>
+          </div>
         </div>
-
-        <div className="form-group">
-          <label>Duration</label>
-          <select value={duration} onChange={(e) => setDuration(e.target.value)}>
-            <option value="">-- Select Duration --</option>
-            <option>1 Month</option>
-            <option>3 Months</option>
-            <option>6 Months</option>
-            <option>1 Year</option>
-          </select>
+        <div className="cc-page-header__stats">
+          <div className="cc-stat-pill cc-stat-pill--blue">
+            <span className="cc-stat-pill__num">{courses.length}</span>
+            <span className="cc-stat-pill__label">Active</span>
+          </div>
+          <div className="cc-stat-pill cc-stat-pill--amber">
+            <span className="cc-stat-pill__num">{inactiveCourses.length}</span>
+            <span className="cc-stat-pill__label">Inactive</span>
+          </div>
         </div>
-
-        <div className="form-group">
-          <label>Description</label>
-          <textarea
-            rows="5"
-            maxLength="500"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Enter course description..."
-          />
-          <small>{description.length}/500 characters</small>
-        </div>
-
-        <div className="form-group">
-          <label>Upload Syllabus (PDF / DOC / DOCX)</label>
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept=".pdf,.doc,.docx"
-            onChange={(e) => setFile(e.target.files[0])}
-          />
-          {editingId && <small style={{color: '#666'}}>Leave blank to keep existing file.</small>}
-        </div>
-
-        <button
-          className="assign-btn"
-          onClick={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? "Saving..." : editingId ? "Update Course" : "Create Course"}
-        </button>
-
-        {editingId && (
-          <button className="cancel-btn" onClick={resetForm} style={{ marginLeft: '10px' }}>
-            Cancel
-          </button>
-        )}
       </div>
 
-      {/* RIGHT LIST */}
-      <div className="assign-list">
-        <div className="list-header">
-          <h3>Course Management</h3>
-          <div className="toggle-buttons">
-            <button
-              className={viewMode === "ACTIVE" ? "active-tab" : ""}
-              onClick={() => setViewMode("ACTIVE")}
-            >
-              Active
-            </button>
-            <button
-              className={viewMode === "INACTIVE" ? "active-tab" : ""}
-              onClick={() => setViewMode("INACTIVE")}
-            >
-              Inactive
-            </button>
+      <div className="cc-layout">
+
+        {/* ════════ LEFT — FORM ════════ */}
+        <div className="cc-form-panel">
+          <div className="cc-form-panel__head">
+            <div className="cc-form-panel__head-icon">
+              {editingId ? "✏️" : "➕"}
+            </div>
+            <div>
+              <h2 className="cc-form-panel__title">
+                {editingId ? "Edit Course" : "New Course"}
+              </h2>
+              <p className="cc-form-panel__sub">
+                {editingId ? "Update the course details below" : "Fill in the details to create a course"}
+              </p>
+            </div>
+          </div>
+
+          {/* alerts */}
+          {message && (
+            <div className="cc-alert cc-alert--success">
+              <span className="cc-alert__icon">✅</span>
+              <span>{message}</span>
+            </div>
+          )}
+          {error && (
+            <div className="cc-alert cc-alert--error">
+              <span className="cc-alert__icon">⚠️</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="cc-form">
+            {/* Course Name */}
+            <div className="cc-field">
+              <label className="cc-label">
+                <span className="cc-label__icon">📝</span>
+                Course Name
+              </label>
+              <input
+                className="cc-input"
+                type="text"
+                value={courseName}
+                onChange={e => setCourseName(e.target.value)}
+                placeholder="e.g. Full Stack Java Development"
+              />
+            </div>
+
+            {/* Duration */}
+            <div className="cc-field">
+              <label className="cc-label">
+                <span className="cc-label__icon">⏱️</span>
+                Duration
+              </label>
+              <div className="cc-select-wrap">
+                <select
+                  className="cc-select"
+                  value={duration}
+                  onChange={e => setDuration(e.target.value)}
+                >
+                  <option value="">— Select Duration —</option>
+                  <option>1 Month</option>
+                  <option>3 Months</option>
+                  <option>6 Months</option>
+                  <option>1 Year</option>
+                </select>
+                <span className="cc-select-arrow">▾</span>
+              </div>
+
+              {/* Duration visual pills */}
+              <div className="cc-duration-pills">
+                {["1 Month","3 Months","6 Months","1 Year"].map(d => (
+                  <button
+                    key={d} type="button"
+                    className={`cc-dur-pill ${duration === d ? "cc-dur-pill--active" : ""}`}
+                    onClick={() => setDuration(d)}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="cc-field">
+              <label className="cc-label">
+                <span className="cc-label__icon">📄</span>
+                Description
+                <span className="cc-label__count">{description.length}/500</span>
+              </label>
+              <textarea
+                className="cc-textarea"
+                rows="5"
+                maxLength="500"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Describe the course content, outcomes and prerequisites..."
+              />
+              <div className="cc-char-bar">
+                <div
+                  className="cc-char-bar__fill"
+                  style={{ width: `${(description.length / 500) * 100}%`,
+                    background: description.length < 10 ? "#ef4444"
+                               : description.length > 450 ? "#f59e0b" : "#16a34a"
+                  }}
+                />
+              </div>
+              {description.length < 10 && description.length > 0 && (
+                <span className="cc-hint cc-hint--warn">Minimum 10 characters required</span>
+              )}
+            </div>
+
+            {/* File Upload */}
+            <div className="cc-field">
+              <label className="cc-label">
+                <span className="cc-label__icon">📎</span>
+                Syllabus File
+              </label>
+              <label className="cc-file-drop">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".pdf,.doc,.docx"
+                  onChange={e => setFile(e.target.files[0])}
+                  className="cc-file-input"
+                />
+                <div className="cc-file-drop__inner">
+                  <div className="cc-file-drop__icon">{file ? "📋" : "⬆️"}</div>
+                  <div className="cc-file-drop__text">
+                    {file ? file.name : "Click to upload PDF, DOC or DOCX"}
+                  </div>
+                  <div className="cc-file-drop__hint">
+                    {editingId ? "Leave empty to keep existing file" : "Max 10MB • PDF, DOC, DOCX"}
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {/* Actions */}
+            <div className="cc-form-actions">
+              <button
+                className={`cc-btn-primary ${loading ? "cc-btn-primary--loading" : ""}`}
+                onClick={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <><span className="cc-spinner" /> Saving…</>
+                ) : editingId ? (
+                  <><span>💾</span> Update Course</>
+                ) : (
+                  <><span>🚀</span> Create Course</>
+                )}
+              </button>
+              {editingId && (
+                <button className="cc-btn-cancel" onClick={resetForm}>
+                  ✕ Cancel
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="search-box">
-          <input
-            type="text"
-            placeholder="Search course..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+        {/* ════════ RIGHT — LIST ════════ */}
+        <div className="cc-list-panel">
 
-        <div className="scroll-area">
-          {filteredCourses.length > 0 ? (
-            filteredCourses.map((course) => (
-              <div key={course.id} className="course-block">
-                <h4>{course.courseName}</h4>
-                <p><strong>Duration:</strong> {course.duration}</p>
-                <p>{course.description}</p>
+          {/* List header */}
+          <div className="cc-list-header">
+            <div className="cc-list-header__left">
+              <h3 className="cc-list-title">
+                {viewMode === "ACTIVE" ? "Active Courses" : "Inactive Courses"}
+              </h3>
+              <span className="cc-list-count">{filteredCourses.length} course{filteredCourses.length !== 1 ? "s" : ""}</span>
+            </div>
+            <div className="cc-list-header__right">
+              {/* Toggle */}
+              <div className="cc-toggle">
+                <button
+                  className={`cc-toggle__btn ${viewMode === "ACTIVE" ? "cc-toggle__btn--active" : ""}`}
+                  onClick={() => setViewMode("ACTIVE")}
+                >
+                  ✅ Active
+                </button>
+                <button
+                  className={`cc-toggle__btn ${viewMode === "INACTIVE" ? "cc-toggle__btn--inactive-on" : ""}`}
+                  onClick={() => setViewMode("INACTIVE")}
+                >
+                  🗃️ Inactive
+                </button>
+              </div>
+            </div>
+          </div>
 
-                {course.syllabusFileName && (
-                  <div className="syllabus-section">
-                    <div className="syllabus-info">
-                      <span className="syllabus-label">Syllabus:</span>
-                      <span className="syllabus-name">{course.syllabusFileName}</span>
-                    </div>
-                    <button
-                      className="download-btn"
-                      onClick={() =>
-                        window.open(
-                          `${api.defaults.baseURL}${API_BASE}/courses/download/${course.id}`,
-                          "_blank"
-                        )
-                      }
-                    >
-                      ⬇ Download
-                    </button>
-                  </div>
-                )}
+          {/* Search */}
+          <div className="cc-search">
+            <span className="cc-search__icon">🔍</span>
+            <input
+              className="cc-search__input"
+              type="text"
+              placeholder="Search courses by name…"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button className="cc-search__clear" onClick={() => setSearchTerm("")}>✕</button>
+            )}
+          </div>
 
-                <div className="action-icons">
-                  {viewMode === "ACTIVE" && (
-                    <>
-                      <button className="edit-icon" onClick={() => handleEdit(course)}>
-                        ✏️
-                      </button>
-                      <button className="delete-icon" onClick={() => handleDelete(course.id)}>
-                        🗑️
-                      </button>
-                    </>
-                  )}
-                  {viewMode === "INACTIVE" && (
-                    <button className="reactivate-btn" onClick={() => handleReactivate(course.id)}>
-                      🔄
-                    </button>
-                  )}
+          {/* Course cards */}
+          <div className="cc-scroll-area">
+            {pagedCourses.length === 0 ? (
+              <div className="cc-empty">
+                <div className="cc-empty__icon">📭</div>
+                <div className="cc-empty__text">
+                  {searchTerm ? `No courses match "${searchTerm}"` : "No courses found"}
                 </div>
               </div>
-            ))
-          ) : (
-            <p className="no-data">No courses found.</p>
+            ) : (
+              pagedCourses.map((course, idx) => (
+                <div
+                  key={course.id}
+                  className={`cc-course-card ${editingId === course.id ? "cc-course-card--editing" : ""}`}
+                  style={{ animationDelay: `${idx * 0.05}s` }}
+                >
+                  {/* Status ribbon */}
+                  <div className={`cc-course-card__ribbon ${viewMode === "INACTIVE" ? "cc-course-card__ribbon--inactive" : ""}`} />
+
+                  <div className="cc-course-card__top">
+                    <div className="cc-course-card__icon-wrap">
+                      <span className="cc-course-card__icon">📘</span>
+                    </div>
+                    <div className="cc-course-card__meta">
+                      <h4 className="cc-course-card__name">{course.courseName}</h4>
+                      <div className="cc-course-card__chips">
+                        <span className="cc-chip cc-chip--dur">
+                          {durIcon(course.duration)} {course.duration}
+                        </span>
+                        <span className={`cc-chip ${viewMode === "ACTIVE" ? "cc-chip--active" : "cc-chip--inactive"}`}>
+                          {viewMode === "ACTIVE" ? "● Active" : "○ Inactive"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="cc-course-card__actions">
+                      {viewMode === "ACTIVE" && (
+                        <>
+                          <button
+                            className="cc-icon-btn cc-icon-btn--edit"
+                            title="Edit course"
+                            onClick={() => handleEdit(course)}
+                          >✏️</button>
+                          <button
+                            className="cc-icon-btn cc-icon-btn--delete"
+                            title="Deactivate course"
+                            onClick={() => handleDelete(course.id)}
+                          >🗑️</button>
+                        </>
+                      )}
+                      {viewMode === "INACTIVE" && (
+                        <button
+                          className="cc-icon-btn cc-icon-btn--reactivate"
+                          title="Reactivate course"
+                          onClick={() => handleReactivate(course.id)}
+                        >🔄</button>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="cc-course-card__desc">{course.description}</p>
+
+                  {/* Syllabus row */}
+                  {course.syllabusFileName && (
+                    <div className="cc-syllabus-row">
+                      <div className="cc-syllabus-row__info">
+                        <span className="cc-syllabus-row__file-icon">📎</span>
+                        <div>
+                          <span className="cc-syllabus-row__label">Syllabus</span>
+                          <span className="cc-syllabus-row__name">{course.syllabusFileName}</span>
+                        </div>
+                      </div>
+                      <button
+                        className="cc-download-btn"
+                        onClick={() =>
+                          window.open(
+                            `${api.defaults.baseURL}${API_BASE}/courses/download/${course.id}`,
+                            "_blank"
+                          )
+                        }
+                      >
+                        ⬇ Download
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* ════ PAGINATION ════ */}
+          {totalPages > 1 && (
+            <div className="cc-pagination">
+              <button
+                className="cc-page-btn cc-page-btn--nav"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+              >‹ Prev</button>
+
+              <div className="cc-page-numbers">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => {
+                  /* Show first, last, current ±1 and ellipsis */
+                  if (
+                    p === 1 || p === totalPages ||
+                    (p >= currentPage - 1 && p <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={p}
+                        className={`cc-page-btn ${currentPage === p ? "cc-page-btn--active" : ""}`}
+                        onClick={() => setCurrentPage(p)}
+                      >{p}</button>
+                    );
+                  }
+                  if (p === 2 && currentPage > 3) return <span key="e1" className="cc-page-ellipsis">…</span>;
+                  if (p === totalPages - 1 && currentPage < totalPages - 2) return <span key="e2" className="cc-page-ellipsis">…</span>;
+                  return null;
+                })}
+              </div>
+
+              <button
+                className="cc-page-btn cc-page-btn--nav"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => p + 1)}
+              >Next ›</button>
+
+              <span className="cc-page-info">
+                Page {currentPage} of {totalPages}
+                <span className="cc-page-info__sep">·</span>
+                {filteredCourses.length} total
+              </span>
+            </div>
           )}
+
         </div>
       </div>
     </div>

@@ -1,369 +1,372 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import api from "../../api/axiosConfig";
-import { 
-  FaLayerGroup, FaUsers, FaSearch, 
-  FaEnvelope, FaPhoneAlt, FaChevronDown, FaInbox,
-  FaChartLine, FaChevronLeft, FaChevronRight
+import {
+  FaLayerGroup, FaUsers, FaEnvelope, FaPhoneAlt, FaInbox,
+  FaChevronLeft, FaChevronRight, FaClock, FaArrowLeft, FaSearch,
+  FaGraduationCap, FaUserCircle, FaVideo, FaCopy, FaCheck, FaExternalLinkAlt
 } from "react-icons/fa";
 import "./TrainerCourses.css";
 
 function TrainerCourses() {
-
   const user = JSON.parse(localStorage.getItem("user"));
   const trainerId = user?.id;
 
   const [batches, setBatches] = useState([]);
   const [students, setStudents] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState(null);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [currentPage, setCurrentPage] = useState(1);
+  const [copiedId, setCopiedId] = useState(null);
   const studentsPerPage = 8;
 
   useEffect(() => {
     if (trainerId) loadInitialData();
   }, [trainerId]);
 
-  // ===============================
-  // FETCH ACTIVE BATCHES
-  // ===============================
   const loadInitialData = async () => {
-
     setLoading(true);
-
     try {
-
       const res = await api.get(`/teacher/active-batches/${trainerId}`);
-
       setBatches(res.data);
-
     } catch (err) {
-
       console.error("Failed to load batches", err);
-
     } finally {
-
       setLoading(false);
-
     }
   };
 
-  // ===============================
-  // FETCH STUDENTS BY BATCH
-  // ===============================
-  const handleBatchChange = async (batchId) => {
-
-    const batch = batches.find(b => b.batchId === parseInt(batchId));
-
+  const handleBatchClick = async (batch) => {
     setSelectedBatch(batch);
     setCurrentPage(1);
-
-    if (batch) {
-
-      setLoading(true);
-
-      try {
-
-        const res = await api.get(`/teacher/batches/${batch.batchId}/students`);
-
-        setStudents(res.data);
-
-      } catch (err) {
-
-        console.error("Failed to load students", err);
-
-      } finally {
-
-        setLoading(false);
-
-      }
+    setStudents([]);
+    setSearchTerm("");
+    setLoading(true);
+    try {
+      const res = await api.get(`/teacher/batches/${batch.batchId}/students`);
+      setStudents(res.data);
+    } catch (err) {
+      console.error("Failed to load students", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ===============================
-  // STATS
-  // ===============================
-  const globalStats = useMemo(() => {
+  const handleBack = () => {
+    setSelectedBatch(null);
+    setStudents([]);
+    setSearchTerm("");
+    setCurrentPage(1);
+  };
 
-    return {
-      batchCount: batches.length,
-      currentBatchStudents: students.length
-    };
+  const handleCopyLink = (id, link) => {
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  };
 
-  }, [batches, students]);
-
-  // ===============================
-  // SEARCH FILTER
-  // ===============================
   const filteredStudents = students.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // ===============================
-  // PAGINATION
-  // ===============================
   const indexOfLastStudent = currentPage * studentsPerPage;
   const indexOfFirstStudent = indexOfLastStudent - studentsPerPage;
+  const currentStudentsPage = filteredStudents.slice(indexOfFirstStudent, indexOfLastStudent);
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
 
-  const currentStudentsPage =
-    filteredStudents.slice(indexOfFirstStudent, indexOfLastStudent);
+  const formatDate = (dateStr) => {
+    const options = { day: "2-digit", month: "short", year: "numeric" };
+    return new Date(dateStr).toLocaleDateString(undefined, options);
+  };
 
-  const totalPages =
-    Math.ceil(filteredStudents.length / studentsPerPage);
+  const formatTime = (timeStr) => {
+    const [hour, minute] = timeStr.split(":");
+    let h = parseInt(hour, 10);
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${minute} ${ampm}`;
+  };
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const batchColors = [
+    { accent: "#4f8ef7", light: "rgba(79,142,247,0.12)" },
+    { accent: "#34d399", light: "rgba(52,211,153,0.12)" },
+    { accent: "#f472b6", light: "rgba(244,114,182,0.12)" },
+    { accent: "#fbbf24", light: "rgba(251,191,36,0.12)" },
+    { accent: "#a78bfa", light: "rgba(167,139,250,0.12)" },
+    { accent: "#38bdf8", light: "rgba(56,189,248,0.12)" },
+  ];
 
   return (
+    <div className="tc-root">
 
-    <div className="trainer-container">
-
-      {/* ===============================
-         HEADER
-      =============================== */}
-
-      <header className="trainer-top-nav">
-
-        <div className="selection-controls">
-
-          <div className="dropdown-wrapper">
-
-            <label><FaLayerGroup /> Batch</label>
-
-            <div className="select-custom">
-
-              <select
-                value={selectedBatch?.batchId || ""}
-                onChange={(e) => handleBatchChange(e.target.value)}
-              >
-
-                <option value="" disabled>Select Active Batch</option>
-
-                {batches.map(b => (
-                  <option key={b.batchId} value={b.batchId}>
-                    {b.batchName}
-                  </option>
-                ))}
-
-              </select>
-
-              <FaChevronDown className="select-arrow" />
-
+      {/* ── Header ── */}
+      <header className="tc-header">
+        <div className="tc-header-inner">
+          <div className="tc-header-left">
+            {selectedBatch && (
+              <button className="tc-back-btn" onClick={handleBack}>
+                <FaArrowLeft />
+                <span>Back</span>
+              </button>
+            )}
+            <div className="tc-title-block">
+              <div className="tc-title-icon">
+                <FaGraduationCap />
+              </div>
+              <div>
+                <h1 className="tc-title">
+                  {selectedBatch ? selectedBatch.batchName : "My Batches"}
+                </h1>
+                <p className="tc-subtitle">
+                  {selectedBatch
+                    ? `${students.length} enrolled student${students.length !== 1 ? "s" : ""}`
+                    : `${batches.length} active batch${batches.length !== 1 ? "es" : ""}`}
+                </p>
+              </div>
             </div>
-
           </div>
 
+          {/* Stats pill */}
+          <div className="tc-stats-row">
+            <div className="tc-stat">
+              <FaLayerGroup className="tc-stat-icon batches" />
+              <div>
+                <span className="tc-stat-val">{batches.length}</span>
+                <span className="tc-stat-lbl">Batches</span>
+              </div>
+            </div>
+            <div className="tc-stat-divider" />
+            <div className="tc-stat">
+              <FaUsers className="tc-stat-icon students" />
+              <div>
+                <span className="tc-stat-val">{students.length}</span>
+                <span className="tc-stat-lbl">Students</span>
+              </div>
+            </div>
+          </div>
         </div>
-
-        {/* SEARCH */}
-
-        <div className="nav-search">
-
-          <FaSearch />
-
-          <input
-            type="text"
-            placeholder="Search students..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-            disabled={!selectedBatch}
-          />
-
-        </div>
-
       </header>
 
-      {/* ===============================
-         STATS
-      =============================== */}
-
-      <section className="stats-strip">
-
-        <div className="stat-card">
-
-          <div className="stat-icon batch-bg"><FaLayerGroup /></div>
-
-          <div className="stat-info">
-            <span className="stat-value">{globalStats.batchCount}</span>
-            <span className="stat-label">Active Batches</span>
-          </div>
-
-        </div>
-
-        <div className="stat-card">
-
-          <div className="stat-icon student-bg"><FaUsers /></div>
-
-          <div className="stat-info">
-            <span className="stat-value">{globalStats.currentBatchStudents}</span>
-            <span className="stat-label">Students in Batch</span>
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* ===============================
-         MAIN CONTENT
-      =============================== */}
-
-      <main className="trainer-content">
+      {/* ── Body ── */}
+      <main className="tc-main">
 
         {loading ? (
-
-          <div className="loading-overlay">
-            <div className="loader-spinner"></div>
-            <p>Processing request...</p>
+          <div className="tc-loading">
+            <div className="tc-spinner" />
+            <p>Loading...</p>
           </div>
 
         ) : !selectedBatch ? (
 
-          <div className="empty-state-hero">
+          /* ════ BATCH CARDS ════ */
+          <div className="tc-batch-grid">
+            {batches.length > 0 ? batches.map((batch, idx) => {
+              const color = batchColors[idx % batchColors.length];
+              const meetingLink = batch.meetingLink || batch.meeting_link || null;
 
-            <div className="hero-illustration">
-              <FaChartLine />
-            </div>
+              return (
+                <div
+                  key={batch.batchId}
+                  className="tc-batch-card"
+                  style={{ "--card-accent": color.accent, "--card-light": color.light }}
+                >
+                  <div className="tc-card-top-bar" />
 
-            <h2>Select a Batch</h2>
+                  <div className="tc-card-body">
+                    <div className="tc-card-icon-wrap">
+                      <FaLayerGroup />
+                    </div>
+                    <h2 className="tc-card-title">{batch.batchName}</h2>
 
-            <p>Please select an active batch to view the student directory.</p>
+                    {/* Schedule rows */}
+                    {batch.classes?.length > 0 && (
+                      <ul className="tc-class-list">
+                        {batch.classes.slice(0, 3).map(cls => (
+                          <li key={cls.id} className="tc-class-item">
+                            <FaClock className="tc-cls-icon" />
+                            <span>
+                              <strong>{formatDate(cls.class_date)}</strong>{" "}
+                              {formatTime(cls.start_time)} – {formatTime(cls.end_time)}
+                            </span>
+                            <span
+                              className="tc-status-badge"
+                              data-status={cls.status?.toLowerCase()}
+                            >
+                              {cls.status}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
 
+                    {/* ── Meeting Link ── */}
+                    {meetingLink ? (
+                      <div className="tc-meeting-row">
+                        <div className="tc-meeting-label">
+                          <FaVideo className="tc-meeting-icon" />
+                          <span>Meeting Link</span>
+                        </div>
+                        <div className="tc-meeting-url-row">
+                          <span className="tc-meeting-url-text">{meetingLink}</span>
+                          <div className="tc-meeting-btns">
+                            <button
+                              className={`tc-icon-btn copy ${copiedId === batch.batchId ? "copied" : ""}`}
+                              onClick={() => handleCopyLink(batch.batchId, meetingLink)}
+                              title="Copy link"
+                            >
+                              {copiedId === batch.batchId ? <FaCheck /> : <FaCopy />}
+                            </button>
+                            <a
+                              href={meetingLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="tc-icon-btn join"
+                              title="Join meeting"
+                            >
+                              <FaExternalLinkAlt />
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="tc-no-meeting">
+                        <FaVideo className="tc-no-meeting-icon" />
+                        <span>No meeting link assigned</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="tc-card-footer">
+                    <button
+                      className="tc-enter-btn"
+                      onClick={() => handleBatchClick(batch)}
+                    >
+                      <FaUsers />
+                      View Students
+                      <FaChevronRight className="tc-btn-arrow" />
+                    </button>
+                  </div>
+                </div>
+              );
+            }) : (
+              <div className="tc-empty">
+                <FaInbox className="tc-empty-icon" />
+                <h3>No Active Batches</h3>
+                <p>You have no ongoing batches at the moment.</p>
+              </div>
+            )}
           </div>
 
         ) : (
 
-          <div className="student-list-container fade-in">
+          /* ════ STUDENTS VIEW ════ */
+          <div className="tc-students-panel">
 
-            <div className="list-header">
-
-              <div className="list-title">
-                <FaUsers />
-                <h2>Enrolled Students</h2>
-              </div>
-
-              {totalPages > 1 && (
-
-                <div className="pagination-wrapper">
-
-                  <span className="page-info">
-                    Page <strong>{currentPage}</strong> of {totalPages}
-                  </span>
-
-                  <div className="page-buttons">
-
-                    <button
-                      className="page-btn"
-                      onClick={() => paginate(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      <FaChevronLeft />
-                    </button>
-
-                    <button
-                      className="page-btn"
-                      onClick={() => paginate(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                    >
-                      <FaChevronRight />
-                    </button>
-
+            {/* ── Meeting Banner ── */}
+            {(selectedBatch.meetingLink || selectedBatch.meeting_link) ? (
+              <div className="tc-meeting-banner">
+                <div className="tc-banner-pulse" />
+                <div className="tc-banner-left">
+                  <div className="tc-banner-icon-wrap">
+                    <FaVideo />
                   </div>
-
+                  <div className="tc-banner-text">
+                    <p className="tc-banner-title">Batch Meeting Link</p>
+                    <p className="tc-banner-url">
+                      {selectedBatch.meetingLink || selectedBatch.meeting_link}
+                    </p>
+                  </div>
                 </div>
-
-              )}
-
-            </div>
-
-            {filteredStudents.length > 0 ? (
-
-              <div className="table-responsive">
-
-                <table className="student-table">
-
-                  <thead>
-
-                    <tr>
-                      <th>Student Name</th>
-                      <th>Email Address</th>
-                      <th>Phone Number</th>
-                    </tr>
-
-                  </thead>
-
-                  <tbody>
-
-                    {currentStudentsPage.map(student => (
-
-                      <tr key={student.id}>
-
-                        <td>
-
-                          <div className="student-info-cell">
-
-                            <div className="name-avatar">
-                              {student.name.charAt(0)}
-                            </div>
-
-                            <span className="name-text">
-                              {student.name}
-                            </span>
-
-                          </div>
-
-                        </td>
-
-                        <td>
-
-                          <a
-                            href={`mailto:${student.email}`}
-                            className="contact-link"
-                          >
-                            <FaEnvelope className="link-icon" />
-                            {student.email}
-                          </a>
-
-                        </td>
-
-                        <td>
-
-                          <div className="contact-item">
-                            <FaPhoneAlt className="link-icon" />
-                            {student.phone || "N/A"}
-                          </div>
-
-                        </td>
-
-                      </tr>
-
-                    ))}
-
-                  </tbody>
-
-                </table>
-
+                <div className="tc-banner-actions">
+                  <button
+                    className={`tc-banner-copy-btn ${copiedId === "banner" ? "copied" : ""}`}
+                    onClick={() => handleCopyLink("banner", selectedBatch.meetingLink || selectedBatch.meeting_link)}
+                  >
+                    {copiedId === "banner" ? <><FaCheck /><span>Copied!</span></> : <><FaCopy /><span>Copy Link</span></>}
+                  </button>
+                  <a
+                    href={selectedBatch.meetingLink || selectedBatch.meeting_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tc-banner-join-btn"
+                  >
+                    <FaVideo />
+                    <span>Join Meeting</span>
+                  </a>
+                </div>
               </div>
-
             ) : (
-
-              <div className="no-results">
-                <FaInbox size={40} />
-                <p>No student records found.</p>
+              <div className="tc-no-meeting-banner">
+                <FaVideo />
+                <span>No meeting link has been assigned to this batch.</span>
               </div>
-
             )}
 
+            {/* Toolbar */}
+            <div className="tc-toolbar">
+              <div className="tc-search">
+                <FaSearch className="tc-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search by name or email…"
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                />
+              </div>
+              <span className="tc-count-chip">
+                <FaUsers /> {filteredStudents.length} student{filteredStudents.length !== 1 ? "s" : ""}
+              </span>
+              {totalPages > 1 && (
+                <div className="tc-pagination">
+                  <span className="tc-page-info">{currentPage} / {totalPages}</span>
+                  <button className="tc-page-btn" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>
+                    <FaChevronLeft />
+                  </button>
+                  <button className="tc-page-btn" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages}>
+                    <FaChevronRight />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Student Cards */}
+            {filteredStudents.length > 0 ? (
+              <div className="tc-student-grid">
+                {currentStudentsPage.map((student, idx) => (
+                  <div
+                    key={student.id}
+                    className="tc-student-card"
+                    style={{ animationDelay: `${idx * 0.05}s` }}
+                  >
+                    <div className="tc-student-avatar">
+                      {student.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="tc-student-info">
+                      <h4 className="tc-student-name">{student.name}</h4>
+                      <a href={`mailto:${student.email}`} className="tc-student-email">
+                        <FaEnvelope />
+                        <span>{student.email}</span>
+                      </a>
+                      <div className="tc-student-phone">
+                        <FaPhoneAlt />
+                        <span>{student.phone || "N/A"}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="tc-empty">
+                <FaUserCircle className="tc-empty-icon" />
+                <h3>No Students Found</h3>
+                <p>Try adjusting your search.</p>
+              </div>
+            )}
           </div>
-
         )}
-
       </main>
-
     </div>
   );
 }

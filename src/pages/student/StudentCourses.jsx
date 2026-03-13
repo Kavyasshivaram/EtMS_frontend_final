@@ -24,14 +24,12 @@ function StudentCourses() {
     try {
       setLoading(true);
 
-      // Fetch courses
       const coursesRes = await api.get(`${API_BASE}/my-courses`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true
       });
       setCourses(coursesRes.data);
 
-      // Fetch batches
       const batchesRes = await api.get(`${API_BASE}/my-batches`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true
@@ -39,15 +37,49 @@ function StudentCourses() {
 
       const batchData = batchesRes.data;
 
-      // For each batch, fetch scheduled classes
       const batchWithClasses = await Promise.all(
         batchData.map(async (batch) => {
+
           const classesRes = await api.get(`${API_BASE}/batch-classes`, {
             params: { batchId: batch.batchId },
             headers: { Authorization: `Bearer ${token}` },
             withCredentials: true
           });
-          return { ...batch, classes: classesRes.data };
+
+          const classes = classesRes.data;
+
+          // ----------- FIXED LOGIC -----------
+
+          const today = new Date().toISOString().split("T")[0];
+          const nowTime = new Date().toTimeString().slice(0,5);
+
+          const filtered = classes
+            .filter(cls => {
+
+              // future dates
+              if (cls.class_date > today) return true;
+
+              // today classes not finished yet
+              if (cls.class_date === today && cls.end_time >= nowTime) return true;
+
+              return false;
+
+            })
+            .sort((a,b) => {
+
+              if(a.class_date === b.class_date){
+                return a.start_time.localeCompare(b.start_time);
+              }
+
+              return a.class_date.localeCompare(b.class_date);
+
+            })
+            .slice(0,2);
+
+          // -----------------------------------
+
+          return { ...batch, classes: filtered };
+
         })
       );
 
@@ -168,15 +200,24 @@ function StudentCourses() {
                         </div>
                       ))
                     ) : (
-                      <p>No scheduled classes for this batch yet.</p>
+                      <p>No upcoming classes.</p>
                     )}
                   </div>
                 </div>
 
                 <div className="card-actions-row">
-                  <button className="action-btn primary">
-                    <FaLink /> Enter Classroom
-                  </button>
+                  {batch.meetingLink ? (
+                    <button
+                      className="action-btn primary"
+                      onClick={() => window.open(batch.meetingLink, "_blank")}
+                    >
+                      <FaLink /> Enter Classroom
+                    </button>
+                  ) : (
+                    <button className="action-btn primary" disabled>
+                      <FaLink /> No Meeting Link
+                    </button>
+                  )}
                 </div>
 
               </div>

@@ -294,3 +294,14 @@
     grid-template-columns: 1fr;
   }
 }
+.info-item a.meeting-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.info-item a.meeting-link:hover {
+  text-decoration: underline;
+  color: #1d4ed8;
+}

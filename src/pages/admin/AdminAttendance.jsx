@@ -1,153 +1,254 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import api from "../../api/axiosConfig";
-
 import "./AdminAttendance.css";
 
-const AdminAttendance = () => {
-  const [activeTab, setActiveTab] = useState("mark");
-  const [courses, setCourses] = useState([]);
+function AdminAttendance() {
   const [batches, setBatches] = useState([]);
-  const [students, setStudents] = useState([]); 
-  const [selectedCourse, setSelectedCourse] = useState("");
-  const [selectedBatch, setSelectedBatch] = useState("");
-  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [records, setRecords] = useState([]);
+  const [batchId, setBatchId] = useState("");
+  const [date, setDate] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(false);
 
   const token = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}` };
 
-  useEffect(() => { fetchCourses(); }, []);
+  useEffect(() => { loadBatches(); }, []);
 
-  const fetchCourses = async () => {
-    const res = await api.get(`/admin/courses`, { headers });
-    setCourses(res.data);
-  };
-
-  const handleCourseChange = async (courseId) => {
-    setSelectedCourse(courseId);
-    setSelectedBatch("");
-    setStudents([]);
-    const res = await api.get(`/admin/batches/course/${courseId}`, { headers });
+  const loadBatches = async () => {
+    const res = await api.get("/admin/batches", { headers });
     setBatches(res.data);
   };
 
-  const handleBatchSelection = async (batchId) => {
-    setSelectedBatch(batchId);
-    if (!batchId) return;
-    
+  const fetchAttendance = async () => {
+    if (!batchId) return alert("Select batch");
     setLoading(true);
-    try {
-      const res = await api.get(`/admin/attendance/students/${batchId}`, { headers });
-      setStudents(res.data.map(s => ({ ...s, status: 'PRESENT' })));
-    } catch (err) {
-      console.error("Failed to fetch batch students");
-    } finally {
-      setLoading(false);
-    }
+    let url = `/admin/attendance/batch/${batchId}`;
+    if (fromDate && toDate) url += `?fromDate=${fromDate}&toDate=${toDate}`;
+    else if (date) url += `?date=${date}`;
+    const res = await api.get(url, { headers });
+    setRecords(res.data.map(r => ({ ...r, status: r.status || "ABSENT", topic: r.topic || "" })));
+    setLoading(false);
   };
 
-  const updateStudentStatus = (id, newStatus) => {
-    setStudents(prev => prev.map(s => s.studentId === id ? { ...s, status: newStatus } : s));
+  const updateStatus = (id, status) => {
+    setRecords(prev => prev.map(r => r.id === id ? { ...r, status, isModified: true } : r));
   };
 
-  const saveAttendance = async () => {
-    if (students.length === 0) return alert("No students in this batch to mark.");
-    
-    setLoading(true);
-    const payload = students.map(s => ({
-      studentId: s.studentId,
-      status: s.status,
-      date: attendanceDate
+  const saveUpdates = async () => {
+    const modified = records.filter(r => r.isModified);
+    if (modified.length === 0) return alert("No changes");
+    const payload = modified.map(r => ({
+      id: r.id || null,
+      studentId: r.studentId,
+      batchId: r.batchId,
+      date: r.date,
+      topic: r.topic || "",
+      status: r.status || "ABSENT"
     }));
-
-    try {
-      await api.post(`/admin/attendance/mark`, payload, { headers });
-      alert("Success: Attendance stored in database.");
-    } catch (e) {
-      alert("Failed to save attendance.");
-    } finally {
-      setLoading(false);
-    }
+    await api.put("/admin/attendance/update", payload, { headers });
+    alert("Attendance Updated");
+    fetchAttendance();
   };
+
+  const downloadCSV = () => {
+    const header = ["Name", "Email", "Date", "Status", "Topic"];
+    const rows = records.map(r => [r.studentName, r.studentEmail, r.date, r.status, r.topic]);
+    const csv = [header, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "attendance.csv"; a.click();
+  };
+
+  const total = records.length;
+  const present = records.filter(r => r.status === "PRESENT").length;
+  const absent = records.filter(r => r.status === "ABSENT").length;
+  const percentage = total ? Math.round((present / total) * 100) : 0;
 
   return (
-    <div className="attendance-page">
-      <div className="attendance-card">
-        <div className="card-header">
-          <h1>Attendance Management</h1>
-          <div className="tab-buttons">
-            <button className={activeTab === 'mark' ? 'active' : ''} onClick={() => setActiveTab('mark')}>Mark Attendance</button>
-            <button className={activeTab === 'view' ? 'active' : ''} onClick={() => setActiveTab('view')}>View Reports</button>
+    <div className="aa-page">
+
+      <div className="aa-header">
+        <h1>Attendance Management</h1>
+        <p>View, edit and export student attendance records</p>
+      </div>
+
+      <div className="aa-card">
+
+        {/* ── FILTERS ── */}
+        <div className="aa-filters">
+          <div className="aa-filter-group">
+            <div className="aa-field">
+              <label>Select Batch</label>
+              <select value={batchId} onChange={e => setBatchId(e.target.value)}>
+                <option value="">— Choose Batch —</option>
+                {batches.map(b => (
+                  <option key={b.id} value={b.id}>{b.batchName}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="aa-field">
+              <label>Date</label>
+              <input type="date" value={date}
+                onChange={e => { setDate(e.target.value); setFromDate(""); setToDate(""); }} />
+            </div>
+
+            <div className="aa-or">OR</div>
+
+            <div className="aa-field">
+              <label>From Date</label>
+              <input type="date" value={fromDate}
+                onChange={e => { setFromDate(e.target.value); setDate(""); }} />
+            </div>
+
+            <div className="aa-field">
+              <label>To Date</label>
+              <input type="date" value={toDate}
+                onChange={e => { setToDate(e.target.value); setDate(""); }} />
+            </div>
           </div>
+
+          <button className="aa-fetch-btn" onClick={fetchAttendance}>
+            Fetch Attendance
+          </button>
         </div>
 
-        <div className="filters-container">
-          <div className="filter-item">
-            <label>Course</label>
-            <select value={selectedCourse} onChange={(e) => handleCourseChange(e.target.value)}>
-              <option value="">-- Choose Course --</option>
-              {courses.map(c => <option key={c.id} value={c.id}>{c.courseName}</option>)}
-            </select>
+        {/* ── STATS ── */}
+        {records.length > 0 && (
+          <div className="aa-stats">
+            <div className="aa-stat aa-stat--indigo">
+              <div className="aa-stat__icon">👥</div>
+              <div className="aa-stat__body">
+                <div className="aa-stat__label">Total Students</div>
+                <div className="aa-stat__val">{total}</div>
+              </div>
+            </div>
+            <div className="aa-stat aa-stat--green">
+              <div className="aa-stat__icon">✓</div>
+              <div className="aa-stat__body">
+                <div className="aa-stat__label">Present</div>
+                <div className="aa-stat__val">{present}</div>
+              </div>
+            </div>
+            <div className="aa-stat aa-stat--red">
+              <div className="aa-stat__icon">✗</div>
+              <div className="aa-stat__body">
+                <div className="aa-stat__label">Absent</div>
+                <div className="aa-stat__val">{absent}</div>
+              </div>
+            </div>
+            <div className="aa-stat aa-stat--amber">
+              <div className="aa-stat__icon">%</div>
+              <div className="aa-stat__body">
+                <div className="aa-stat__label">Attendance Rate</div>
+                <div className="aa-stat__val">{percentage}%</div>
+              </div>
+            </div>
           </div>
+        )}
 
-          <div className="filter-item">
-            <label>Batch</label>
-            <select value={selectedBatch} onChange={(e) => handleBatchSelection(e.target.value)} disabled={!selectedCourse}>
-              <option value="">-- Choose Batch --</option>
-              {batches.map(b => <option key={b.id} value={b.id}>{b.batchName}</option>)}
-            </select>
-          </div>
-
-          <div className="filter-item">
-            <label>Session Date</label>
-            <input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} />
-          </div>
-        </div>
-
-        <div className="content-area">
-          {loading ? <div className="loader">Loading Students...</div> : 
-           students.length > 0 ? (
-            <div className="attendance-table-wrapper">
-              <table className="attendance-table">
-                <thead>
-                  <tr>
-                    <th>Student Name</th>
-                    <th>Email</th>
-                    <th className="center">Attendance Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map(s => (
-                    <tr key={s.studentId}>
-                      <td>{s.studentName}</td>
-                      <td className="email-cell">{s.email}</td>
-                      <td className="center">
-                        <div className="status-toggle">
-                          <button 
-                            className={`p-btn ${s.status === 'PRESENT' ? 'selected' : ''}`}
-                            onClick={() => updateStudentStatus(s.studentId, 'PRESENT')}
-                          >P</button>
-                          <button 
-                            className={`a-btn ${s.status === 'ABSENT' ? 'selected' : ''}`}
-                            onClick={() => updateStudentStatus(s.studentId, 'ABSENT')}
-                          >A</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button className="submit-attendance-btn" onClick={saveAttendance} disabled={loading}>
-                {loading ? "Saving..." : "Submit Attendance"}
-              </button>
+        {/* ── TABLE ── */}
+        <div className="aa-table-section">
+          {loading ? (
+            <div className="aa-empty">
+              <div className="aa-spinner" />
+              <p>Loading attendance data...</p>
+            </div>
+          ) : records.length === 0 ? (
+            <div className="aa-empty">
+              <div className="aa-empty-icon">📋</div>
+              <h3>No Records Found</h3>
+              <p>Select a batch and date, then click Fetch Attendance</p>
             </div>
           ) : (
-            <div className="empty-state">No students found mapped to this batch.</div>
+            <>
+              <div className="aa-toolbar">
+                <div className="aa-toolbar-left">
+                  <h3>Attendance Records</h3>
+                  <span className="aa-count-badge">{total} students</span>
+                </div>
+                <button className="aa-csv-btn" onClick={downloadCSV}>↓ Export CSV</button>
+              </div>
+
+              <div className="aa-table-wrap">
+                <table className="aa-table">
+                  <colgroup>
+                    <col style={{ width: "44px" }} />
+                    <col style={{ width: "160px" }} />
+                    <col style={{ width: "200px" }} />
+                    <col style={{ width: "108px" }} />
+                    <col />
+                    <col style={{ width: "108px" }} />
+                    <col style={{ width: "128px" }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Date</th>
+                      <th>Topic</th>
+                      <th className="th-center">Status</th>
+                      <th className="th-center">Update</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {records.map((r, i) => (
+                      <tr key={r.id} className={r.isModified ? "row-modified" : ""}>
+                        <td className="td-num">{i + 1}</td>
+                        <td className="td-name">{r.studentName}</td>
+                        <td className="td-email">{r.studentEmail}</td>
+                        <td className="td-date">{r.date}</td>
+                        <td className="td-topic">{r.topic || "—"}</td>
+                        <td className="td-center">
+                          <span className={`aa-badge aa-badge--${(r.status || "ABSENT").toLowerCase()}`}>
+                            {r.status || "ABSENT"}
+                          </span>
+                        </td>
+                        <td className="td-center">
+                          <div className="aa-toggle">
+                            <button
+                              className={`aa-btn-p ${r.status === "PRESENT" ? "aa-btn-p--on" : ""}`}
+                              onClick={() => updateStatus(r.id, "PRESENT")}
+                              title="Mark Present"
+                            >P</button>
+                            <button
+                              className={`aa-btn-a ${r.status === "ABSENT" ? "aa-btn-a--on" : ""}`}
+                              onClick={() => updateStatus(r.id, "ABSENT")}
+                              title="Mark Absent"
+                            >A</button>
+                            <button
+                              className={`aa-btn-l ${r.status === "LEAVE" ? "aa-btn-l--on" : ""}`}
+                              onClick={() => updateStatus(r.id, "LEAVE")}
+                              title="Mark Leave"
+                            >L</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="aa-footer">
+                <span className="aa-unsaved">
+                  {records.filter(r => r.isModified).length > 0
+                    ? `⚠ ${records.filter(r => r.isModified).length} unsaved change(s)`
+                    : ""}
+                </span>
+                <button className="aa-save-btn" onClick={saveUpdates}>
+                  Save Changes
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
     </div>
   );
-};
+}
 
 export default AdminAttendance;

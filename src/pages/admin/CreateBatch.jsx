@@ -10,12 +10,11 @@ function CreateBatch() {
   const [batchName, setBatchName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  
   const [trainerId, setTrainerId] = useState("");
   const [status, setStatus] = useState("ONGOING");
-  
-  const [batches, setBatches] = useState([]);
+  const [meetingLink, setMeetingLink] = useState(""); 
 
+  const [batches, setBatches] = useState([]);
   const [trainers, setTrainers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState(null);
@@ -25,16 +24,10 @@ function CreateBatch() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4; 
-
   const today = new Date().toISOString().split("T")[0];
 
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
+  useEffect(() => { fetchInitialData(); }, []);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
   const fetchInitialData = async () => {
     try {
@@ -42,12 +35,9 @@ function CreateBatch() {
         api.get("/admin/trainers"),
         api.get("/admin/batches")
       ]);
-    
       setTrainers(trainerRes.data);
       setBatches(batchRes.data);
-    } catch (err) {
-      console.error("Failed to load initial data", err);
-    }
+    } catch (err) { console.error("Failed to load initial data", err); }
   };
 
   const fetchBatches = async () => {
@@ -62,7 +52,8 @@ function CreateBatch() {
     setStartDate(""); 
     setEndDate(""); 
     setTrainerId("");
-    setStatus("ONGOING"); 
+    setStatus("ONGOING");
+    setMeetingLink(""); // reset
     setEditingId(null); 
     setError(""); 
     setMessage("");
@@ -71,27 +62,16 @@ function CreateBatch() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    /* ===== DATE VALIDATION START ===== */
-
     if (!batchName || !startDate || !endDate || !trainerId) {
       return setError("Please fill all required fields.");
     }
 
-    if (startDate < today) {
-      return setError("Start date cannot be before today.");
-    }
+    if (startDate < today) return setError("Start date cannot be before today.");
+    if (endDate < startDate) return setError("End date cannot be before start date.");
 
-    if (endDate < startDate) {
-      return setError("End date cannot be before start date.");
-    }
+    setLoading(true); setMessage(""); setError("");
 
-    /* ===== DATE VALIDATION END ===== */
-
-    setLoading(true); 
-    setMessage(""); 
-    setError("");
-
-    const payload = { batchName, startDate, endDate, trainerId, status };
+    const payload = { batchName, startDate, endDate, trainerId, status, meetingLink };
 
     try {
       if (editingId) {
@@ -104,7 +84,6 @@ function CreateBatch() {
 
       resetForm(); 
       fetchBatches();
-
       setTimeout(() => setMessage(""), 3000);
 
     } catch (err) { 
@@ -121,15 +100,14 @@ function CreateBatch() {
     setEndDate(batch.endDate);
     setTrainerId(batch.trainer?.id || "");
     setStatus(batch.status || "ONGOING");
+    setMeetingLink(batch.meetingLink || ""); // NEW
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to remove this batch?")) return;
-    try {
-      await api.delete(`/admin/batches/${id}`);
-      fetchBatches();
-    } catch (err) { alert("Delete operation failed."); }
+    try { await api.delete(`/admin/batches/${id}`); fetchBatches(); } 
+    catch (err) { alert("Delete operation failed."); }
   };
 
   const filteredBatches = batches.filter(b => {
@@ -154,7 +132,7 @@ function CreateBatch() {
         <div className="left-form-card">
           <div className="form-header">
             <h2>{editingId ? "Update Batch" : "Create New Batch"}</h2>
-            <p className="form-subtitle">Create Bathes</p>
+            <p className="form-subtitle">Create Batches</p>
           </div>
 
           <form className="form-body" onSubmit={handleSubmit}>
@@ -184,22 +162,23 @@ function CreateBatch() {
             <div className="input-flex-row">
               <div className="input-box">
                 <label>Start Date</label>
-                <input 
-                  type="date" 
-                  value={startDate} 
-                  onChange={(e) => setStartDate(e.target.value)}
-                  min={today}
-                />
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} min={today}/>
               </div>
               <div className="input-box">
                 <label>End Date</label>
-                <input 
-                  type="date" 
-                  value={endDate} 
-                  onChange={(e) => setEndDate(e.target.value)}
-                  min={startDate || today}
-                />
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate || today}/>
               </div>
+            </div>
+
+            {/* ===== NEW MEETING LINK FIELD ===== */}
+            <div className="input-box">
+              <label>Meeting Link</label>
+              <input 
+                type="url" 
+                placeholder="e.g. https://meet.google.com/xyz-abc" 
+                value={meetingLink} 
+                onChange={(e) => setMeetingLink(e.target.value)} 
+              />
             </div>
 
             <div className="input-box">
@@ -222,7 +201,7 @@ function CreateBatch() {
           </form>
         </div>
 
-        {/* RIGHT DIRECTORY (UNCHANGED) */}
+        {/* RIGHT DIRECTORY CARD UNCHANGED */}
         <div className="right-directory-card">
           <div className="directory-header">
             <div className="header-text">
@@ -233,12 +212,7 @@ function CreateBatch() {
             <div className="header-actions">
               <div className="search-bar">
                 <FaSearch className="search-icon" />
-                <input 
-                  type="text" 
-                  placeholder="Search by name, batch.." 
-                  value={searchTerm} 
-                  onChange={(e) => setSearchTerm(e.target.value)} 
-                />
+                <input type="text" placeholder="Search by name, batch.." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
 
               {totalPages > 1 && (
@@ -268,6 +242,13 @@ function CreateBatch() {
                     <div className="info-item"><FaUserTie /> {batch.trainer?.name}</div>
                     <div className="info-item"><FaCalendarAlt /> {batch.startDate} to {batch.endDate}</div>
                     <div className="info-item"><FaEnvelope /> <small>{batch.trainer?.email}</small></div>
+                    {batch.meetingLink && (
+  <div className="info-item">
+    <a href={batch.meetingLink} target="_blank" rel="noopener noreferrer" className="meeting-link">
+      Join Meeting
+    </a>
+  </div>
+)}
                   </div>
 
                   <div className="card-actions">
@@ -281,7 +262,6 @@ function CreateBatch() {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );

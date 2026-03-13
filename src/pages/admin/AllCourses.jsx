@@ -2,21 +2,102 @@ import { useEffect, useState, useRef } from "react";
 import api from "../../api/axiosConfig";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
-import { 
-  FaSearch, FaBell, FaBookOpen, FaClock, 
-  FaArrowRight, FaTimes, FaGraduationCap 
+import {
+  FaSearch, FaBell, FaBookOpen, FaClock,
+  FaArrowRight, FaTimes, FaGraduationCap, FaUsers,
+  FaLayerGroup
 } from "react-icons/fa";
 import "react-toastify/dist/ReactToastify.css";
 import "./AllCourses.css";
 
+/* Course accent colours — cycles through cards */
+const CARD_ACCENTS = [
+  { gradient: "linear-gradient(135deg,#2563eb,#1e40af)", light: "#eff6ff", icon: "#2563eb" },
+  { gradient: "linear-gradient(135deg,#7c3aed,#5b21b6)", light: "#f5f3ff", icon: "#7c3aed" },
+  { gradient: "linear-gradient(135deg,#0891b2,#0e7490)", light: "#ecfeff", icon: "#0891b2" },
+  { gradient: "linear-gradient(135deg,#059669,#047857)", light: "#ecfdf5", icon: "#059669" },
+  { gradient: "linear-gradient(135deg,#ea580c,#c2410c)", light: "#fff7ed", icon: "#ea580c" },
+  { gradient: "linear-gradient(135deg,#db2777,#be185d)", light: "#fdf2f8", icon: "#db2777" },
+];
+
+/* Tiny course-icon selector by keyword */
+const COURSE_ICONS = {
+  java: "☕", react: "⚛️", node: "🟢", python: "🐍",
+  angular: "🅰️", spring: "🍃", mysql: "🗄️", web: "🌐",
+  data: "📊", ml: "🤖", cloud: "☁️", mobile: "📱",
+  default: "📘",
+};
+function getCourseIcon(name = "") {
+  const lower = name.toLowerCase();
+  for (const key of Object.keys(COURSE_ICONS)) {
+    if (key !== "default" && lower.includes(key)) return COURSE_ICONS[key];
+  }
+  return COURSE_ICONS.default;
+}
+
+function CourseCard({ course, index, onClick }) {
+  const accent = CARD_ACCENTS[index % CARD_ACCENTS.length];
+  const icon   = getCourseIcon(course.courseName);
+
+  return (
+    <div
+      className="ac2-card"
+      style={{ "--accent": accent.gradient, "--accent-lt": accent.light, "--accent-icon": accent.icon }}
+      onClick={onClick}
+    >
+      {/* Top gradient bar */}
+      <div className="ac2-card__bar" />
+
+      {/* Header row */}
+      <div className="ac2-card__header">
+        <div className="ac2-card__icon-wrap">
+          <span className="ac2-card__emoji">{icon}</span>
+        </div>
+        <span className="ac2-card__dur">
+          <FaClock className="ac2-card__dur-icon" />
+          {course.duration}
+        </span>
+      </div>
+
+      {/* Body */}
+      <div className="ac2-card__body">
+        <h2 className="ac2-card__title">{course.courseName}</h2>
+        <p className="ac2-card__desc">
+          {course.description || "Comprehensive learning module covering industry-standard practices and modern concepts."}
+        </p>
+      </div>
+
+      {/* Stats row */}
+      <div className="ac2-card__stats">
+        <div className="ac2-card__stat">
+          <FaUsers className="ac2-card__stat-icon" />
+          <span>{course.studentCount ?? "—"} students</span>
+        </div>
+        <div className="ac2-card__stat">
+          <FaLayerGroup className="ac2-card__stat-icon" />
+          <span>Course #{course.id}</span>
+        </div>
+      </div>
+
+      {/* Footer CTA */}
+      <div className="ac2-card__footer">
+        <button className="ac2-card__cta">
+          <span>View Details</span>
+          <span className="ac2-card__cta-arrow"><FaArrowRight /></span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AllCourses() {
-  const [courses, setCourses] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [courses, setCourses]                   = useState([]);
+  const [searchTerm, setSearchTerm]             = useState("");
   const [hasNewNotification, setHasNewNotification] = useState(false);
-  const [loading, setLoading] = useState(true);
-  
+  const [loading, setLoading]                   = useState(true);
+
   const lastCourseCount = useRef(0);
-  const navigate = useNavigate();
+  const navigate        = useNavigate();
 
   useEffect(() => {
     fetchCourses(true);
@@ -26,17 +107,12 @@ function AllCourses() {
 
   const fetchCourses = async (isFirstLoad) => {
     try {
-      const response = await api.get("admin/courses/details");
+      const response  = await api.get("admin/courses/details");
       const newCourses = response.data;
-
       if (!isFirstLoad && newCourses.length > lastCourseCount.current) {
         setHasNewNotification(true);
-        toast.info("📚 New curriculum tracks added!", {
-          position: "top-right",
-          theme: "colored",
-        });
+        toast.info("📚 New curriculum tracks added!", { position: "top-right", theme: "colored" });
       }
-
       setCourses(newCourses);
       lastCourseCount.current = newCourses.length;
     } catch (error) {
@@ -53,101 +129,105 @@ function AllCourses() {
     }
   };
 
-  const filteredCourses = courses.filter((course) =>
-    course.courseName.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCourses = courses.filter((c) =>
+    c.courseName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="all-courses-module">
+    <div className="ac2-page">
       <ToastContainer />
 
-      {/* HEADER SECTION */}
-      <header className="ac-main-header">
-        <div className="ac-header-inner">
-          <div className="ac-title-section">
-            <div className="ac-title-icon">
+      {/* ══════════════ HEADER ══════════════ */}
+      <header className="ac2-header">
+        <div className="ac2-header__inner">
+
+          <div className="ac2-header__brand">
+            <div className="ac2-header__brand-icon">
               <FaGraduationCap />
             </div>
-            <div className="ac-title-text">
-              <h1>Academic Catalog</h1>
-              <p>Displaying {filteredCourses.length} Learning Tracks</p>
+            <div>
+              <h1 className="ac2-header__title">Academic Catalog</h1>
+              <p className="ac2-header__sub">
+                {filteredCourses.length} learning track{filteredCourses.length !== 1 ? "s" : ""} available
+              </p>
             </div>
           </div>
-          
-          <div className="ac-header-controls">
-            {/* STRUCTURED SEARCH BAR */}
-            <div className={`ac-search-container ${searchTerm ? 'ac-active' : ''}`}>
-              <div className="ac-search-input-group">
-                <FaSearch className="ac-search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search by course name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                {searchTerm && (
-                  <button className="ac-search-clear" onClick={() => setSearchTerm("")}>
-                    <FaTimes />
-                  </button>
-                )}
-              </div>
+
+          <div className="ac2-header__controls">
+            <div className="ac2-search">
+              <FaSearch className="ac2-search__icon" />
+              <input
+                className="ac2-search__input"
+                type="text"
+                placeholder="Search courses…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button className="ac2-search__clear" onClick={() => setSearchTerm("")}>
+                  <FaTimes />
+                </button>
+              )}
             </div>
 
-            <button className="ac-notif-btn" onClick={handleNotificationClick}>
-              <FaBell className={`ac-bell ${hasNewNotification ? 'ac-swing' : ''}`} />
-              {hasNewNotification && <span className="ac-notif-dot"></span>}
+            <button className="ac2-notif-btn" onClick={handleNotificationClick}>
+              <FaBell className={hasNewNotification ? "ac2-bell-swing" : ""} />
+              {hasNewNotification && <span className="ac2-notif-dot" />}
             </button>
+          </div>
+        </div>
+
+        {/* Stats strip */}
+        <div className="ac2-header__strip">
+          <div className="ac2-strip-stat">
+            <span className="ac2-strip-stat__num">{courses.length}</span>
+            <span className="ac2-strip-stat__lbl">Total Courses</span>
+          </div>
+          <div className="ac2-strip-divider" />
+          <div className="ac2-strip-stat">
+            <span className="ac2-strip-stat__num">
+              {courses.reduce((a, c) => a + (c.studentCount || 0), 0)}
+            </span>
+            <span className="ac2-strip-stat__lbl">Total Students</span>
+          </div>
+          <div className="ac2-strip-divider" />
+          <div className="ac2-strip-stat">
+            <span className="ac2-strip-stat__num">{filteredCourses.length}</span>
+            <span className="ac2-strip-stat__lbl">Showing</span>
           </div>
         </div>
       </header>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="ac-content-wrapper">
+      {/* ══════════════ CONTENT ══════════════ */}
+      <main className="ac2-main">
         {loading ? (
-          <div className="ac-state-view">
-            <div className="ac-spinner"></div>
-            <p>Syncing catalog data...</p>
+          <div className="ac2-state-center">
+            <div className="ac2-spinner" />
+            <p className="ac2-state-text">Loading catalog…</p>
           </div>
         ) : filteredCourses.length > 0 ? (
-          <div className="ac-card-grid">
-            {filteredCourses.map((course) => (
-              <div key={course.id} className="ac-course-card">
-                <div className="ac-card-glow"></div>
-                
-                <div className="ac-card-top">
-                  <div className="ac-icon-box">
-                    <FaBookOpen />
-                  </div>
-                  <div className="ac-duration">
-                    <FaClock className="ac-clock-icon" /> {course.duration}
-                  </div>
-                </div>
-
-                <div className="ac-card-body">
-                  <h2 className="ac-course-title">{course.courseName}</h2>
-                  <p className="ac-course-desc">
-                    {course.description || "Comprehensive learning module covering industry-standard practices and fundamental concepts."}
-                  </p>
-                </div>
-
-                <div className="ac-card-footer">
-                  <button
-                    className="ac-manage-btn"
-                    onClick={() => navigate(`/admin/course-details/${course.id}`, { state: course })}
-                  >
-                    <span>View Details</span>
-                    <FaArrowRight className="ac-arrow" />
-                  </button>
-                </div>
-              </div>
+          <div className="ac2-grid">
+            {filteredCourses.map((course, i) => (
+              <CourseCard
+                key={course.id}
+                course={course}
+                index={i}
+                onClick={() => navigate(`/admin/course-details/${course.id}`, { state: course })}
+              />
             ))}
           </div>
         ) : (
-          <div className="ac-empty-state">
-            <div className="ac-empty-icon">📂</div>
-            <h3>No Courses Found</h3>
-            <p>We couldn't find matches for "{searchTerm}".</p>
-            <button className="ac-reset-btn" onClick={() => setSearchTerm("")}>Clear Filters</button>
+          <div className="ac2-empty">
+            <div className="ac2-empty__icon">📂</div>
+            <h3 className="ac2-empty__title">No Courses Found</h3>
+            <p className="ac2-empty__sub">
+              {searchTerm ? `No results for "${searchTerm}"` : "No courses have been added yet."}
+            </p>
+            {searchTerm && (
+              <button className="ac2-empty__clear" onClick={() => setSearchTerm("")}>
+                Clear Search
+              </button>
+            )}
           </div>
         )}
       </main>
