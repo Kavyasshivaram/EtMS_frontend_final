@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-
 import api from "../../api/axiosConfig";  
 import { 
   FaCalendarCheck, 
@@ -7,7 +6,6 @@ import {
   FaUserTimes, 
   FaWalking, 
   FaPercentage, 
-  FaSearch, 
   FaFilter 
 } from "react-icons/fa";
 import "./StudentAttendance.css";
@@ -17,9 +15,7 @@ function StudentAttendance() {
   const studentId = user?.id;
   const token = localStorage.getItem("token");
 
-  const [courses, setCourses] = useState([]);
   const [batches, setBatches] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState("");
   const [selectedBatch, setSelectedBatch] = useState("");
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -37,43 +33,28 @@ function StudentAttendance() {
     attendancePercentage: 0,
   });
 
-  // Fetch courses on mount
+  // Fetch ongoing batches on mount
   useEffect(() => {
-    if (studentId) fetchStudentCourses();
+    if (studentId) fetchStudentBatches();
   }, [studentId]);
 
-  const fetchStudentCourses = async () => {
+  const fetchStudentBatches = async () => {
     try {
-      const res = await api.get("/student/my-courses", {
+      const res = await api.get(`/student/my-batches`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
 
-      const data = res.data;
-      const uniqueCourses = [...new Map(data.map((item) => [item.id, item])).values()];
+      const data = res.data || [];
+      setBatches(data);
 
-      setCourses(uniqueCourses);
-
-      if (uniqueCourses.length > 0) {
-        setSelectedCourse(uniqueCourses[0].id);
-        const firstBatchList = data.filter((c) => c.id === uniqueCourses[0].id);
-        setBatches(firstBatchList);
-        setSelectedBatch(firstBatchList[0].batchId);
+      if (data.length > 0) {
+        setSelectedBatch(data[0].batchId);
       }
     } catch (err) {
-      console.error("Course fetch error:", err);
+      console.error("Batch fetch error:", err);
     }
   };
-
-  // Update batches when course changes
-  useEffect(() => {
-    if (!selectedCourse) return;
-    const filteredBatches = courses.filter((c) => c.id === Number(selectedCourse));
-    setBatches(filteredBatches);
-    if (filteredBatches.length > 0) {
-      setSelectedBatch(filteredBatches[0].batchId);
-    }
-  }, [selectedCourse]);
 
   // Fetch data when batch or filter changes
   useEffect(() => {
@@ -99,8 +80,7 @@ function StudentAttendance() {
       const present = data.filter((r) => r.status === "PRESENT").length;
       const absent = data.filter((r) => r.status === "ABSENT").length;
       const leave = data.filter((r) => r.status === "LEAVE").length;
-      
-      // Percentage calculation: (Present + Leave) / Total
+
       const percentage = total > 0 ? Math.round(((present + leave) / total) * 100) : 0;
 
       setSummary({
@@ -130,15 +110,6 @@ function StudentAttendance() {
       {/* FILTER SECTION */}
       <div className="filter-wrapper">
         <div className="filter-item">
-          <label><FaSearch className="label-icon" /> Course</label>
-          <select value={selectedCourse} onChange={(e) => setSelectedCourse(Number(e.target.value))}>
-            {courses.map((course) => (
-              <option key={course.id} value={course.id}>{course.courseName}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="filter-item">
           <label><FaFilter className="label-icon" /> Batch</label>
           <select value={selectedBatch} onChange={(e) => setSelectedBatch(Number(e.target.value))}>
             {batches.map((batch) => (
@@ -149,12 +120,20 @@ function StudentAttendance() {
 
         <div className="filter-item">
           <label>From</label>
-          <input type="date" value={filter.fromDate} onChange={(e) => setFilter({ ...filter, fromDate: e.target.value })} />
+          <input
+            type="date"
+            value={filter.fromDate}
+            onChange={(e) => setFilter({ ...filter, fromDate: e.target.value })}
+          />
         </div>
 
         <div className="filter-item">
           <label>To</label>
-          <input type="date" value={filter.toDate} onChange={(e) => setFilter({ ...filter, toDate: e.target.value })} />
+          <input
+            type="date"
+            value={filter.toDate}
+            onChange={(e) => setFilter({ ...filter, toDate: e.target.value })}
+          />
         </div>
       </div>
 
@@ -229,7 +208,7 @@ function StudentAttendance() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="3" className="no-data-msg">No attendance logs found for the selected criteria.</td>
+                  <td colSpan="3" className="no-data-msg">No attendance logs found for the selected batch/date range.</td>
                 </tr>
               )}
             </tbody>
