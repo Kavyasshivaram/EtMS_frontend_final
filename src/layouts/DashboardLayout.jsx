@@ -95,11 +95,11 @@ function DashboardLayout() {
                     <div className="dropdown-content">
                       <NavLink to="/admin/create-course" onClick={() => setActiveDropdown(null)}>➕ Create Course</NavLink>
                       <NavLink to="/admin/courses" onClick={() => setActiveDropdown(null)}>📚 All Courses</NavLink>
-                      <NavLink to="/admin/create-batch" onClick={() => setActiveDropdown(null)}>🗂 Create Batch</NavLink>
-                      <NavLink to="/admin/assign-trainer" onClick={() => setActiveDropdown(null)}>👨‍🏫 Trainer Assignment</NavLink>
+                      <NavLink to="/admin/create-batch" onClick={() => setActiveDropdown(null)}>🗂 Manage Batch</NavLink>
+                      <NavLink to="/admin/assign-trainer" onClick={() => setActiveDropdown(null)}>👨‍🏫Manage Trainer </NavLink>
                       <NavLink to="/admin/schedule-class" onClick={() => setActiveDropdown(null)}>⏰ Schedule Class</NavLink>
-                      <NavLink to="/admin/students" onClick={() => setActiveDropdown(null)}>👨‍🎓 Manage Students</NavLink>
-                      <NavLink to="/admin/attendance" onClick={() => setActiveDropdown(null)}>🗓 Attendance</NavLink>
+                      <NavLink to="/admin/students" onClick={() => setActiveDropdown(null)}>👨‍🎓 Student Mapping</NavLink>
+                      <NavLink to="/admin/attendance" onClick={() => setActiveDropdown(null)}>🗓Manage Attendance </NavLink>
                     </div>
                   )}
                 </div>
@@ -130,7 +130,7 @@ function DashboardLayout() {
                 </button>
                 {activeDropdown === 'trainer' && (
                   <div className="dropdown-content">
-                    <NavLink to="/trainer/course" onClick={() => setActiveDropdown(null)}>📚 My Bathes</NavLink>
+                    <NavLink to="/trainer/course" onClick={() => setActiveDropdown(null)}>📚 My Batches</NavLink>
                     <NavLink to="/trainer/attendance" onClick={() => setActiveDropdown(null)}>🗓 Attendance</NavLink>
                     <NavLink to="/trainer/assignments" onClick={() => setActiveDropdown(null)}>📝 Assignments</NavLink>
                     <NavLink to="/trainer/materials" onClick={() => setActiveDropdown(null)}>📂 Study Materials</NavLink>

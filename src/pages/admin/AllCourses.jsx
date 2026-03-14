@@ -3,7 +3,7 @@ import api from "../../api/axiosConfig";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import {
-  FaSearch, FaBell, FaBookOpen, FaClock,
+  FaSearch, FaBell, FaClock,
   FaArrowRight, FaTimes, FaGraduationCap, FaUsers,
   FaLayerGroup
 } from "react-icons/fa";
@@ -20,13 +20,13 @@ const CARD_ACCENTS = [
   { gradient: "linear-gradient(135deg,#db2777,#be185d)", light: "#fdf2f8", icon: "#db2777" },
 ];
 
-/* Tiny course-icon selector by keyword */
 const COURSE_ICONS = {
   java: "☕", react: "⚛️", node: "🟢", python: "🐍",
   angular: "🅰️", spring: "🍃", mysql: "🗄️", web: "🌐",
   data: "📊", ml: "🤖", cloud: "☁️", mobile: "📱",
   default: "📘",
 };
+
 function getCourseIcon(name = "") {
   const lower = name.toLowerCase();
   for (const key of Object.keys(COURSE_ICONS)) {
@@ -35,9 +35,17 @@ function getCourseIcon(name = "") {
   return COURSE_ICONS.default;
 }
 
+/* Helper: get real student count from course object */
+function getStudentCount(course) {
+  if (course.students && course.students.length > 0) return course.students.length;
+  if (course.studentCount != null) return course.studentCount;
+  return 0;
+}
+
 function CourseCard({ course, index, onClick }) {
   const accent = CARD_ACCENTS[index % CARD_ACCENTS.length];
   const icon   = getCourseIcon(course.courseName);
+  const count  = getStudentCount(course);
 
   return (
     <div
@@ -45,10 +53,8 @@ function CourseCard({ course, index, onClick }) {
       style={{ "--accent": accent.gradient, "--accent-lt": accent.light, "--accent-icon": accent.icon }}
       onClick={onClick}
     >
-      {/* Top gradient bar */}
       <div className="ac2-card__bar" />
 
-      {/* Header row */}
       <div className="ac2-card__header">
         <div className="ac2-card__icon-wrap">
           <span className="ac2-card__emoji">{icon}</span>
@@ -59,7 +65,6 @@ function CourseCard({ course, index, onClick }) {
         </span>
       </div>
 
-      {/* Body */}
       <div className="ac2-card__body">
         <h2 className="ac2-card__title">{course.courseName}</h2>
         <p className="ac2-card__desc">
@@ -67,11 +72,10 @@ function CourseCard({ course, index, onClick }) {
         </p>
       </div>
 
-      {/* Stats row */}
       <div className="ac2-card__stats">
         <div className="ac2-card__stat">
           <FaUsers className="ac2-card__stat-icon" />
-          <span>{course.studentCount ?? "—"} students</span>
+          <span>{count} student{count !== 1 ? "s" : ""}</span>
         </div>
         <div className="ac2-card__stat">
           <FaLayerGroup className="ac2-card__stat-icon" />
@@ -79,7 +83,6 @@ function CourseCard({ course, index, onClick }) {
         </div>
       </div>
 
-      {/* Footer CTA */}
       <div className="ac2-card__footer">
         <button className="ac2-card__cta">
           <span>View Details</span>
@@ -91,10 +94,10 @@ function CourseCard({ course, index, onClick }) {
 }
 
 function AllCourses() {
-  const [courses, setCourses]                   = useState([]);
-  const [searchTerm, setSearchTerm]             = useState("");
+  const [courses, setCourses]                       = useState([]);
+  const [searchTerm, setSearchTerm]                 = useState("");
   const [hasNewNotification, setHasNewNotification] = useState(false);
-  const [loading, setLoading]                   = useState(true);
+  const [loading, setLoading]                       = useState(true);
 
   const lastCourseCount = useRef(0);
   const navigate        = useNavigate();
@@ -107,12 +110,14 @@ function AllCourses() {
 
   const fetchCourses = async (isFirstLoad) => {
     try {
-      const response  = await api.get("admin/courses/details");
+      const response   = await api.get("admin/courses/details");
       const newCourses = response.data;
+
       if (!isFirstLoad && newCourses.length > lastCourseCount.current) {
         setHasNewNotification(true);
         toast.info("📚 New curriculum tracks added!", { position: "top-right", theme: "colored" });
       }
+
       setCourses(newCourses);
       lastCourseCount.current = newCourses.length;
     } catch (error) {
@@ -133,14 +138,15 @@ function AllCourses() {
     c.courseName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  /* FIX: sum students from students array (backend returns students[] inside each course) */
+  const totalStudents = courses.reduce((sum, c) => sum + getStudentCount(c), 0);
+
   return (
     <div className="ac2-page">
       <ToastContainer />
 
-      {/* ══════════════ HEADER ══════════════ */}
       <header className="ac2-header">
         <div className="ac2-header__inner">
-
           <div className="ac2-header__brand">
             <div className="ac2-header__brand-icon">
               <FaGraduationCap />
@@ -177,7 +183,6 @@ function AllCourses() {
           </div>
         </div>
 
-        {/* Stats strip */}
         <div className="ac2-header__strip">
           <div className="ac2-strip-stat">
             <span className="ac2-strip-stat__num">{courses.length}</span>
@@ -185,9 +190,7 @@ function AllCourses() {
           </div>
           <div className="ac2-strip-divider" />
           <div className="ac2-strip-stat">
-            <span className="ac2-strip-stat__num">
-              {courses.reduce((a, c) => a + (c.studentCount || 0), 0)}
-            </span>
+            <span className="ac2-strip-stat__num">{totalStudents}</span>
             <span className="ac2-strip-stat__lbl">Total Students</span>
           </div>
           <div className="ac2-strip-divider" />
@@ -198,7 +201,6 @@ function AllCourses() {
         </div>
       </header>
 
-      {/* ══════════════ CONTENT ══════════════ */}
       <main className="ac2-main">
         {loading ? (
           <div className="ac2-state-center">

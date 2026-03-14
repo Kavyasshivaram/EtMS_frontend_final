@@ -1,265 +1,613 @@
 import {
-  FaBook,
-  FaChalkboardTeacher,
-  FaUsers,
-  FaBell,
-  FaSearch,
-  FaLayerGroup,
-  FaChevronLeft,
-  FaChevronRight
+  FaBook, FaChalkboardTeacher, FaUsers, FaBell,
+  FaLayerGroup, FaCheckCircle, FaTimesCircle,
+  FaUserSlash, FaUserCheck, FaUserGraduate, FaUserTie,
+  FaSync
 } from "react-icons/fa";
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import api from "../../api/axiosConfig";
-
 import "./AdminDashboard.css";
 
-function AdminDashboard() {
-  const user = JSON.parse(localStorage.getItem("user"));
-  const [data, setData] = useState({
-    totalCourses: 0,
-    totalTrainers: 0,
-    totalStudents: 0,
-    activeBatches: 0
-  });
+/* ── Constants ── */
+const PAGE_SIZE_APPROVAL = 8;
+const PAGE_SIZE_USERS    = 10;
 
-  const [users, setUsers] = useState([]);
-  const [search, setSearch] = useState("");
-  const [pendingCount, setPendingCount] = useState(0);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const notificationRef = useRef(null);
+const AVATAR_COLORS = [
+  { bg:"#eff6ff", color:"#2563eb" }, { bg:"#f5f3ff", color:"#7c3aed" },
+  { bg:"#ecfdf5", color:"#059669" }, { bg:"#fff7ed", color:"#ea580c" },
+  { bg:"#fdf2f8", color:"#db2777" }, { bg:"#ecfeff", color:"#0891b2" },
+];
 
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const recordsPerPage = 10;
+const STATUS_META = {
+  ACTIVE:   { label:"Active",   cls:"adm-status--active",   dot:"●" },
+  PENDING:  { label:"Pending",  cls:"adm-status--pending",  dot:"◐" },
+  INACTIVE: { label:"Inactive", cls:"adm-status--inactive", dot:"○" },
+  REJECTED: { label:"Rejected", cls:"adm-status--rejected", dot:"✕" },
+};
+
+/* ── Reusable components ── */
+function StatusBadge({ status }) {
+  const m = STATUS_META[status] || STATUS_META.INACTIVE;
+  return <span className={`adm-status-badge ${m.cls}`}>{m.dot} {m.label}</span>;
+}
+
+function Avatar({ name, idx }) {
+  const s = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+  return (
+    <div className="adm-avatar" style={{ background: s.bg, color: s.color }}>
+      {(name || "?").charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+function RoleTag({ role }) {
+  const r = (role || "").toLowerCase();
+  return (
+    <span className={`adm-role-tag adm-role-tag--${r}`}>
+      {role || "—"}
+    </span>
+  );
+}
+
+function ActionBtns({ user, onApprove, onReject, onDeactivate, onActivate }) {
+  return (
+    <div className="adm-action-group">
+      {user.status === "PENDING" && (
+        <>
+          <button className="adm-btn adm-btn--approve" onClick={() => onApprove(user.id)}>
+            <FaCheckCircle /> Approve
+          </button>
+          <button className="adm-btn adm-btn--reject" onClick={() => onReject(user.id)}>
+            <FaTimesCircle /> Reject
+          </button>
+        </>
+      )}
+      {user.status === "ACTIVE" && (
+        <button className="adm-btn adm-btn--deactivate" onClick={() => onDeactivate(user.id)}>
+          <FaUserSlash /> Deactivate
+        </button>
+      )}
+      {(user.status === "INACTIVE" || user.status === "REJECTED") && (
+        <button className="adm-btn adm-btn--activate" onClick={() => onActivate(user.id)}>
+          <FaUserCheck /> Activate
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Pagination({ currentPage, totalPages, onChange, total, pageSize }) {
+  if (totalPages <= 1) return null;
+  const from = (currentPage - 1) * pageSize + 1;
+  const to   = Math.min(currentPage * pageSize, total);
+
+  const nums = [];
+  for (let p = 1; p <= totalPages; p++) {
+    if (p===1 || p===totalPages || (p>=currentPage-1 && p<=currentPage+1)) nums.push(p);
+    else if (p===2 && currentPage>3) nums.push("...");
+    else if (p===totalPages-1 && currentPage<totalPages-2) nums.push("...");
+  }
+  const deduped = [...new Set(nums)];
+
+  return (
+    <div className="adm-pagination">
+      <span className="adm-pag-info">{from}–{to} of {total}</span>
+      <div className="adm-pag-btns">
+        <button className="adm-pag-btn adm-pag-nav" disabled={currentPage===1}
+          onClick={() => onChange(p => p - 1)}>‹ Prev</button>
+        {deduped.map((p, i) =>
+          p === "..."
+            ? <span key={`e${i}`} className="adm-pag-dots">…</span>
+            : <button key={p}
+                className={`adm-pag-btn ${currentPage===p ? "adm-pag-btn--on" : ""}`}
+                onClick={() => onChange(p)}>{p}</button>
+        )}
+        <button className="adm-pag-btn adm-pag-nav" disabled={currentPage===totalPages}
+          onClick={() => onChange(p => p + 1)}>Next ›</button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════
+   NOTIFICATION DROPDOWN — rendered via React Portal
+   directly into document.body so it sits OUTSIDE the
+   hero's stacking context (backdrop-filter on stat
+   pills creates an isolated stacking context that
+   traps any child regardless of z-index).
+   Position is calculated from the button's bounding rect.
+   ══════════════════════════════════════════════════ */
+function NotifDropdown({ btnRef, pendingUsers, onViewAll }) {
+  const [pos, setPos] = useState({ top: 0, right: 0 });
 
   useEffect(() => {
-    fetchDashboardData();
-    fetchAllUsers();
+    function reposition() {
+      if (!btnRef.current) return;
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({
+        top:   r.bottom + window.scrollY + 8,
+        right: window.innerWidth - r.right,
+      });
+    }
+    reposition();
+    window.addEventListener("resize",  reposition);
+    window.addEventListener("scroll",  reposition, true);
+    return () => {
+      window.removeEventListener("resize",  reposition);
+      window.removeEventListener("scroll",  reposition, true);
+    };
+  }, [btnRef]);
+
+  return createPortal(
+    <div
+      className="adm-notif-drop adm-notif-drop--portal"
+      style={{ top: pos.top, right: pos.right }}
+    >
+      <div className="adm-notif-drop__head">
+        🔔 Pending Approvals
+        <span className="adm-notif-count">{pendingUsers.length}</span>
+      </div>
+      <div className="adm-notif-drop__body">
+        {pendingUsers.length > 0 ? pendingUsers.map(u => (
+          <div key={u.id} className="adm-notif-item">
+            <div className="adm-notif-item__avatar">
+              {u.name?.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div className="adm-notif-item__name">{u.name}</div>
+              <div className="adm-notif-item__role">
+                {u.role?.roleName} · {u.email}
+              </div>
+            </div>
+          </div>
+        )) : (
+          <div className="adm-notif-empty">All caught up! No pending requests 🎉</div>
+        )}
+      </div>
+      {pendingUsers.length > 0 && (
+        <div className="adm-notif-drop__footer">
+          <button onClick={onViewAll}>View All Approvals →</button>
+        </div>
+      )}
+    </div>,
+    document.body
+  );
+}
+
+/* ══════════════════════════════════════════════════
+   MAIN COMPONENT
+   ══════════════════════════════════════════════════ */
+function AdminDashboard() {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  const [data, setData] = useState({
+    totalCourses: 0, totalTrainers: 0, totalStudents: 0, activeBatches: 0
+  });
+  const [users,   setUsers]   = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const [showNotif,   setShowNotif]   = useState(false);
+  const notifBtnRef  = useRef(null);   // on the <button>
+  const notifWrapRef = useRef(null);   // on the wrapper div
+
+  const [activeSection, setActiveSection] = useState("approval");
+
+  const [approvalSearch, setApprovalSearch] = useState("");
+  const [approvalPage,   setApprovalPage]   = useState(1);
+
+  const [userSearch,   setUserSearch]   = useState("");
+  const [roleFilter,   setRoleFilter]   = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [userPage,     setUserPage]     = useState(1);
+
+  const [nowTime, setNowTime] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNowTime(new Date()), 60000);
+    return () => clearInterval(t);
   }, []);
 
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good Morning";
+    if (h < 17) return "Good Afternoon";
+    return "Good Evening";
+  })();
+
+  /* Outside click — must also check the portal node in document.body */
+  useEffect(() => {
+    const h = (e) => {
+      if (notifWrapRef.current && notifWrapRef.current.contains(e.target)) return;
+      const portal = document.querySelector(".adm-notif-drop--portal");
+      if (portal && portal.contains(e.target)) return;
+      setShowNotif(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  useEffect(() => { setApprovalPage(1); }, [approvalSearch]);
+  useEffect(() => { setUserPage(1); }, [userSearch, roleFilter, statusFilter]);
+
   const fetchDashboardData = async () => {
-    try {
-      const res = await api.get("/admin/dashboard");
-      setData(res.data);
-    } catch (err) {
-      console.error(err);
-    }
+    try { const res = await api.get("/admin/dashboard"); setData(res.data); }
+    catch (err) { console.error(err); }
   };
 
   const fetchAllUsers = async () => {
+    setLoading(true);
     try {
-      const res = await api.get("/admin/all-users");
-      setUsers(res.data);
-      const pending = res.data.filter(u => u.status === "PENDING").length;
-      setPendingCount(pending);
-    } catch (err) {
-      console.error(err);
-    }
+      const [sRes, tRes] = await Promise.all([
+        api.get("/admin/all-users"),
+        api.get("/admin/all-trainers"),
+      ]);
+      setUsers([...(sRes.data || []), ...(tRes.data || [])]);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
-  const approveUser = async (id) => {
-    await api.put(`/admin/approve-user/${id}`);
-    fetchAllUsers();
-  };
+  useEffect(() => { fetchDashboardData(); fetchAllUsers(); }, []);
 
-  const rejectUser = async (id) => {
-    await api.put(`/admin/reject-user/${id}`);
-    fetchAllUsers();
-  };
+  const approveUser    = async (id) => { await api.put(`/admin/approve-user/${id}`);    fetchAllUsers(); fetchDashboardData(); };
+  const rejectUser     = async (id) => { await api.put(`/admin/reject-user/${id}`);     fetchAllUsers(); };
+  const deactivateUser = async (id) => { await api.put(`/admin/deactivate-user/${id}`); fetchAllUsers(); };
+  const reactivateUser = async (id) => { await api.put(`/admin/approve-user/${id}`);    fetchAllUsers(); fetchDashboardData(); };
+  const handleRefresh  = () => { fetchDashboardData(); fetchAllUsers(); };
 
-  const deactivateUser = async (id) => {
-    await api.put(`/admin/deactivate-user/${id}`);
-    fetchAllUsers();
-  };
+  const pendingUsers  = users.filter(u => u.status === "PENDING");
+  const pendingCount  = pendingUsers.length;
+  const studentsCount = users.filter(u => u.role?.roleName === "STUDENT").length;
+  const trainersCount = users.filter(u => u.role?.roleName === "TRAINER").length;
+  const activeCount   = users.filter(u => u.status === "ACTIVE").length;
 
-  const reactivateUser = async (id) => {
-    await api.put(`/admin/approve-user/${id}`);
-    fetchAllUsers();
-  };
-
-  const toggleNotifications = () => setShowNotifications(!showNotifications);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
-        setShowNotifications(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Filter & Pagination Logic + PENDING CANDIDATES FIRST SORT
-  const filteredUsers = users
-    .filter((u) => {
-      const text = search.toLowerCase();
-      return (
-        u.name?.toLowerCase().includes(text) ||
-        u.email?.toLowerCase().includes(text) ||
-        u.phone?.toLowerCase().includes(text)
-      );
+  const approvalList = users
+    .filter(u => {
+      const t = approvalSearch.toLowerCase();
+      return !t || u.name?.toLowerCase().includes(t) || u.email?.toLowerCase().includes(t);
     })
     .sort((a, b) => {
-      // Logic: If 'a' is PENDING and 'b' is not, 'a' comes first (-1)
-      if (a.status === "PENDING" && b.status !== "PENDING") return -1;
-      if (a.status !== "PENDING" && b.status === "PENDING") return 1;
-      return 0; // Otherwise keep original order
+      if (a.status==="PENDING" && b.status!=="PENDING") return -1;
+      if (a.status!=="PENDING" && b.status==="PENDING") return 1;
+      return 0;
     });
 
-  const indexOfLastRecord = currentPage * recordsPerPage;
-  const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
-  const currentRecords = filteredUsers.slice(indexOfFirstRecord, indexOfLastRecord);
-  const nPages = Math.ceil(filteredUsers.length / recordsPerPage);
+  const approvalTotalPages = Math.max(1, Math.ceil(approvalList.length / PAGE_SIZE_APPROVAL));
+  const approvalPaged = approvalList.slice(
+    (approvalPage-1)*PAGE_SIZE_APPROVAL, approvalPage*PAGE_SIZE_APPROVAL
+  );
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search]);
+  const allUsersList = users.filter(u => {
+    const t = userSearch.toLowerCase();
+    const matchSearch = !t || u.name?.toLowerCase().includes(t)
+      || u.email?.toLowerCase().includes(t) || u.phone?.toLowerCase().includes(t);
+    const matchRole   = roleFilter==="ALL" || u.role?.roleName === roleFilter;
+    const matchStatus = statusFilter==="ALL" || u.status === statusFilter;
+    return matchSearch && matchRole && matchStatus;
+  });
+
+  const userTotalPages = Math.max(1, Math.ceil(allUsersList.length / PAGE_SIZE_USERS));
+  const userPaged = allUsersList.slice(
+    (userPage-1)*PAGE_SIZE_USERS, userPage*PAGE_SIZE_USERS
+  );
+
+  const showRoleColumn = roleFilter === "ALL";
+
+  const STAT_CARDS = [
+    { label:"Total Courses",  val:data.totalCourses,  icon:<FaBook />,              cls:"adm-sc--blue",   delay:"0.05s" },
+    { label:"Total Trainers", val:data.totalTrainers, icon:<FaChalkboardTeacher />, cls:"adm-sc--purple", delay:"0.10s" },
+    { label:"Total Students", val:data.totalStudents, icon:<FaUsers />,              cls:"adm-sc--green",  delay:"0.15s" },
+    { label:"Active Batches", val:data.activeBatches, icon:<FaLayerGroup />,         cls:"adm-sc--amber",  delay:"0.20s" },
+  ];
 
   return (
-    <div className="admin-dashboard-wrapper">
-      {/* HEADER */}
-      <div className="dashboard-header">
-        <div className="header-left">
-          <h1>Admin Portal</h1>
-          <p>Welcome, <span className="admin-name">{user?.name || "Administrator"}</span></p>
-        </div>
+    <div className="adm-page">
 
-        <div className="header-right" ref={notificationRef}>
-          <div className="notification-trigger" onClick={toggleNotifications}>
-            <FaBell className="bell-icon" />
-            {pendingCount > 0 && (
-              <span className="notification-badge">{pendingCount}</span>
-            )}
+      {/* ══════════ HERO HEADER ══════════ */}
+      <header className="adm-hero">
+        <div className="adm-hero__orb adm-hero__orb--1" />
+        <div className="adm-hero__orb adm-hero__orb--2" />
+        <div className="adm-hero__orb adm-hero__orb--3" />
+
+        <div className="adm-hero__inner">
+          <div className="adm-hero__left">
+            <div className="adm-greeting-chip">{greeting} 👋</div>
+            <h1 className="adm-hero__name">{user?.name || "Administrator"}</h1>
+            <p className="adm-hero__role">Admin Portal · EtMS Smart Learning</p>
           </div>
 
-          {showNotifications && (
-            <div className="notification-dropdown">
-              <div className="dropdown-arrow"></div>
-              <div className="dropdown-header">Pending Approvals</div>
-              <div className="dropdown-body">
-                {users.filter(u => u.status === "PENDING").length > 0 ? (
-                  users.filter(u => u.status === "PENDING").map(u => (
-                    <div key={u.id} className="dropdown-item">
-                      <strong>{u.name}</strong>
-                      <span>Role: {u.role?.roleName}</span>
+          <div className="adm-hero__right">
+            <div className="adm-live-clock">
+              <div className="adm-clock__time">
+                {nowTime.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })}
+              </div>
+              <div className="adm-clock__date">
+                {nowTime.toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric" })}
+              </div>
+            </div>
+
+            {/* Notification bell — dropdown uses Portal to escape stacking context */}
+            <div className="adm-notif-wrap" ref={notifWrapRef}>
+              <button
+                className="adm-notif-btn"
+                ref={notifBtnRef}
+                onClick={() => setShowNotif(v => !v)}
+              >
+                <FaBell />
+                {pendingCount > 0 && (
+                  <span className="adm-notif-badge">{pendingCount}</span>
+                )}
+              </button>
+
+              {showNotif && (
+                <NotifDropdown
+                  btnRef={notifBtnRef}
+                  pendingUsers={pendingUsers}
+                  onViewAll={() => { setActiveSection("approval"); setShowNotif(false); }}
+                />
+              )}
+            </div>
+
+            <button className="adm-refresh-btn" onClick={handleRefresh} title="Refresh">
+              <FaSync />
+            </button>
+          </div>
+        </div>
+
+        {/* Stat pills */}
+        <div className="adm-hero__stats">
+          {STAT_CARDS.map((c, i) => (
+            <div key={i} className={`adm-stat-pill ${c.cls}`} style={{ animationDelay: c.delay }}>
+              <div className="adm-stat-pill__icon">{c.icon}</div>
+              <div className="adm-stat-pill__body">
+                <span className="adm-stat-pill__val">{c.val}</span>
+                <span className="adm-stat-pill__lbl">{c.label}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </header>
+
+      {/* ══════════ SECTION TABS ══════════ */}
+      <div className="adm-section-tabs">
+        <button
+          className={`adm-sec-tab ${activeSection==="approval" ? "adm-sec-tab--active" : ""}`}
+          onClick={() => setActiveSection("approval")}
+        >
+          <FaCheckCircle /> User Approvals
+          {pendingCount > 0 && <span className="adm-tab-badge">{pendingCount}</span>}
+        </button>
+        <button
+          className={`adm-sec-tab ${activeSection==="users" ? "adm-sec-tab--active" : ""}`}
+          onClick={() => setActiveSection("users")}
+        >
+          <FaUsers /> All Users
+          <span className="adm-tab-chip">{users.length}</span>
+        </button>
+
+        <div className="adm-tab-stats">
+          <span className="adm-tab-stat adm-tab-stat--student">
+            <FaUserGraduate /> {studentsCount} Students
+          </span>
+          <span className="adm-tab-stat adm-tab-stat--trainer">
+            <FaUserTie /> {trainersCount} Trainers
+          </span>
+          <span className="adm-tab-stat adm-tab-stat--active">
+            <FaCheckCircle /> {activeCount} Active
+          </span>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════
+          SECTION 1 — USER APPROVALS
+         ══════════════════════════════════════ */}
+      {activeSection === "approval" && (
+        <div className="adm-card">
+          <div className="adm-card__toolbar">
+            <div className="adm-card__toolbar-left">
+              <h3 className="adm-card__title">User Approvals</h3>
+              {pendingCount > 0 && (
+                <span className="adm-pending-chip">⚠ {pendingCount} pending</span>
+              )}
+            </div>
+            <div className="adm-search">
+              <span className="adm-search__ico">🔍</span>
+              <input className="adm-search__inp" type="text"
+                placeholder="Search by name or email…"
+                value={approvalSearch}
+                onChange={e => setApprovalSearch(e.target.value)} />
+              {approvalSearch && (
+                <button className="adm-search__clr" onClick={() => setApprovalSearch("")}>✕</button>
+              )}
+            </div>
+          </div>
+
+          <Pagination currentPage={approvalPage} totalPages={approvalTotalPages}
+            onChange={setApprovalPage} total={approvalList.length} pageSize={PAGE_SIZE_APPROVAL} />
+
+          <div className="adm-table-wrap">
+            <table className="adm-table">
+              <colgroup>
+                <col style={{width:"46px"}}/>
+                <col style={{width:"260px"}}/>
+                <col style={{width:"120px"}}/>
+                <col style={{width:"110px"}}/>
+                <col style={{width:"200px"}}/>
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>User Details</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan="5" className="adm-td-state">
+                    <div className="adm-state-row"><div className="adm-spinner"/>Loading…</div>
+                  </td></tr>
+                ) : approvalPaged.length === 0 ? (
+                  <tr><td colSpan="5" className="adm-td-state">
+                    <div className="adm-empty">
+                      <span className="adm-empty__ico">👥</span>
+                      <p>No users found.</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="dropdown-empty">No pending requests</div>
+                  </td></tr>
+                ) : approvalPaged.map((u, i) => {
+                  const idx = (approvalPage-1)*PAGE_SIZE_APPROVAL + i;
+                  return (
+                    <tr key={u.id} className={u.status==="PENDING" ? "adm-row--pending" : ""}>
+                      <td className="adm-td adm-td--num">
+                        <span className="adm-rnum">{idx+1}</span>
+                      </td>
+                      <td className="adm-td">
+                        <div className="adm-user-cell">
+                          <Avatar name={u.name} idx={idx} />
+                          <div className="adm-user-cell__info">
+                            <span className="adm-user-cell__name">{u.name}</span>
+                            <span className="adm-user-cell__sub">{u.email}</span>
+                            {u.phone && <span className="adm-user-cell__sub">{u.phone}</span>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="adm-td"><RoleTag role={u.role?.roleName} /></td>
+                      <td className="adm-td"><StatusBadge status={u.status} /></td>
+                      <td className="adm-td adm-td--actions">
+                        <ActionBtns user={u}
+                          onApprove={approveUser} onReject={rejectUser}
+                          onDeactivate={deactivateUser} onActivate={reactivateUser} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════
+          SECTION 2 — ALL USERS
+         ══════════════════════════════════════ */}
+      {activeSection === "users" && (
+        <div className="adm-card">
+          <div className="adm-card__toolbar adm-card__toolbar--wrap">
+            <div className="adm-card__toolbar-left">
+              <h3 className="adm-card__title">All Users</h3>
+              <span className="adm-count-chip">{allUsersList.length} records</span>
+            </div>
+
+            <div className="adm-filters-row">
+              <div className="adm-filter-tabs">
+                {["ALL","STUDENT","TRAINER"].map(r => (
+                  <button key={r}
+                    className={`adm-ftab ${roleFilter===r ? "adm-ftab--on" : ""}`}
+                    onClick={() => setRoleFilter(r)}
+                  >
+                    {r==="ALL"     ? `All (${users.length})`
+                    :r==="STUDENT" ? `Students (${studentsCount})`
+                    :               `Trainers (${trainersCount})`}
+                  </button>
+                ))}
+              </div>
+
+              <div className="adm-select-wrap">
+                <select className="adm-select" value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}>
+                  <option value="ALL">All Statuses</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="INACTIVE">Inactive</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
+                <span className="adm-select-arrow">▾</span>
+              </div>
+
+              <div className="adm-search">
+                <span className="adm-search__ico">🔍</span>
+                <input className="adm-search__inp" type="text"
+                  placeholder="Search name, email, phone…"
+                  value={userSearch}
+                  onChange={e => setUserSearch(e.target.value)} />
+                {userSearch && (
+                  <button className="adm-search__clr" onClick={() => setUserSearch("")}>✕</button>
                 )}
               </div>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* STATS GRID */}
-      <div className="stats-grid">
-        {[
-          { label: "Total Courses", val: data.totalCourses, icon: <FaBook /> },
-          { label: "Total Trainers", val: data.totalTrainers, icon: <FaChalkboardTeacher /> },
-          { label: "Total Students", val: data.totalStudents, icon: <FaUsers /> },
-          { label: "Active Batches", val: data.activeBatches, icon: <FaLayerGroup /> }
-        ].map((item, idx) => (
-          <div className="stat-card" key={idx}>
-            <div className="stat-icon-container">{item.icon}</div>
-            <div className="stat-text">
-              <p>{item.label}</p>
-              <h2>{item.val}</h2>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* USER MANAGEMENT SECTION */}
-      <div className="user-management-section">
-        <div className="section-header">
-          <div className="title-group">
-            <h2>User Management</h2>
-            <div className="search-bar">
-              <FaSearch />
-              <input 
-                type="text" 
-                placeholder="Search candidates..." 
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
           </div>
 
-          {/* PAGINATION ON TOP */}
-          {nPages > 1 && (
-            <div className="top-pagination">
-              <span className="page-info">Page {currentPage} of {nPages}</span>
-              <div className="page-controls">
-                <button 
-                  disabled={currentPage === 1} 
-                  onClick={() => setCurrentPage(prev => prev - 1)}
-                  className="ctrl-btn"
-                ><FaChevronLeft /></button>
-                <button 
-                  disabled={currentPage === nPages} 
-                  onClick={() => setCurrentPage(prev => prev + 1)}
-                  className="ctrl-btn"
-                ><FaChevronRight /></button>
-              </div>
-            </div>
-          )}
-        </div>
+          <Pagination currentPage={userPage} totalPages={userTotalPages}
+            onChange={setUserPage} total={allUsersList.length} pageSize={PAGE_SIZE_USERS} />
 
-        <div className="table-container">
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>User Details</th>
-                <th>User Role</th>
-                <th>Status</th>
-                <th className="text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentRecords.length > 0 ? (
-                currentRecords.map((u) => (
-                  <tr key={u.id}>
-                    <td>
-                      <div className="cell-user">
-                        <span className="name">{u.name}</span>
-                        <span className="sub">{u.email} | {u.phone}</span>
-                      </div>
-                    </td>
-                    <td><span className="role-tag">{u.role?.roleName}</span></td>
-                    <td>
-                      <span className={`status-dot status-${u.status.toLowerCase()}`}>
-                        {u.status}
-                      </span>
-                    </td>
-                    <td className="text-center">
-                      <div className="btn-group">
-                        {u.status === "ACTIVE" && (
-                          <button onClick={() => deactivateUser(u.id)} className="btn-danger-outline">Deactivate</button>
-                        )}
-                        {u.status === "PENDING" && (
-                          <>
-                            <button onClick={() => approveUser(u.id)} className="btn-primary-sm">Approve</button>
-                            <button onClick={() => rejectUser(u.id)} className="btn-danger-sm">Reject</button>
-                          </>
-                        )}
-                        {(u.status === "INACTIVE" || u.status === "REJECTED") && (
-                          <button onClick={() => reactivateUser(u.id)} className="btn-primary-sm">Activate</button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
+          <div className="adm-table-wrap">
+            <table className="adm-table">
+              <colgroup>
+                <col style={{width:"46px"}}/>
+                <col style={{width:"200px"}}/>
+                <col style={{width:"200px"}}/>
+                <col style={{width:"130px"}}/>
+                {showRoleColumn && <col style={{width:"110px"}}/>}
+                <col style={{width:"110px"}}/>
+                <col style={{width:"200px"}}/>
+              </colgroup>
+              <thead>
                 <tr>
-                  <td colSpan="4" className="empty-row">No candidates matching your search.</td>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  {showRoleColumn && <th>Role</th>}
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={showRoleColumn ? 7 : 6} className="adm-td-state">
+                    <div className="adm-state-row"><div className="adm-spinner"/>Loading…</div>
+                  </td></tr>
+                ) : userPaged.length === 0 ? (
+                  <tr><td colSpan={showRoleColumn ? 7 : 6} className="adm-td-state">
+                    <div className="adm-empty">
+                      <span className="adm-empty__ico">🔎</span>
+                      <p>No users match the current filters.</p>
+                    </div>
+                  </td></tr>
+                ) : userPaged.map((u, i) => {
+                  const idx = (userPage-1)*PAGE_SIZE_USERS + i;
+                  return (
+                    <tr key={u.id}>
+                      <td className="adm-td adm-td--num">
+                        <span className="adm-rnum">{idx+1}</span>
+                      </td>
+                      <td className="adm-td">
+                        <div className="adm-user-cell">
+                          <Avatar name={u.name} idx={idx} />
+                          <span className="adm-user-cell__name">{u.name}</span>
+                        </div>
+                      </td>
+                      <td className="adm-td">
+                        <a href={`mailto:${u.email}`} className="adm-link">{u.email}</a>
+                      </td>
+                      <td className="adm-td adm-td--phone">{u.phone || "—"}</td>
+                      {showRoleColumn && (
+                        <td className="adm-td"><RoleTag role={u.role?.roleName} /></td>
+                      )}
+                      <td className="adm-td"><StatusBadge status={u.status} /></td>
+                      <td className="adm-td adm-td--actions">
+                        <ActionBtns user={u}
+                          onApprove={approveUser} onReject={rejectUser}
+                          onDeactivate={deactivateUser} onActivate={reactivateUser} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -3,223 +3,304 @@ import api from "../../api/axiosConfig";
 import "./StudentProfile.css";
 
 function StudentProfile() {
-  const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [statusMsg, setStatusMsg] = useState({ type: "", text: "" });
+  const [isEditing,  setIsEditing]  = useState(false);
+  const [loading,    setLoading]    = useState(true);
+  const [saving,     setSaving]     = useState(false);
+  const [toast,      setToast]      = useState({ type: "", text: "" });
   const fileInputRef = useRef(null);
 
-  const MALE_AVATAR = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const userEmail  = storedUser?.email || "";
+
+  const MALE_AVATAR   = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
   const FEMALE_AVATAR = "https://cdn-icons-png.flaticon.com/512/3135/3135789.png";
 
-  const storedUser = JSON.parse(localStorage.getItem("user"));
-  const userEmail = storedUser?.email || "";
-
-  // Synchronized with MySQL Schema
   const [student, setStudent] = useState({
-    name: "",
-    email: userEmail,
-    phone: "",
-    gender: "",
-    qualification: "",
-    year: "",
-    skills: "",
-    bio: "",
-    profilePic: "", // Maps to profile_pic LONGTEXT
-    address: "",
-    city: "",
-    state: "",
-    pincode: ""
+    name: "", email: userEmail, phone: "", gender: "",
+    qualification: "", year: "", skills: "", bio: "",
+    profilePic: "", address: "", city: "", state: "", pincode: ""
   });
 
+  /* Snapshot for cancel */
+  const [snapshot, setSnapshot] = useState(null);
+
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await api.get(`/student/profile/${userEmail}`);
-        if (res.data) setStudent(res.data);
-      } catch (err) {
-        console.error("Error fetching profile:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (userEmail) fetchProfile();
+    if (!userEmail) { setLoading(false); return; }
+    api.get(`/student/profile/${userEmail}`)
+      .then(res => { if (res.data) setStudent(res.data); })
+      .catch(err => console.error("Error fetching profile:", err))
+      .finally(() => setLoading(false));
   }, [userEmail]);
 
-  const calculateProgress = () => {
-    const fields = [student.name, student.phone, student.gender, student.qualification, student.year, student.address];
-    const filled = fields.filter(f => f && f.toString().trim() !== "").length;
-    return Math.round((filled / fields.length) * 100);
+  const showToast = (type, text) => {
+    setToast({ type, text });
+    setTimeout(() => setToast({ type: "", text: "" }), 3500);
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setStudent({ ...student, [name]: value });
-  };
+  const progress = (() => {
+    const fields = [student.name, student.phone, student.gender,
+                    student.qualification, student.year, student.address];
+    return Math.round(fields.filter(f => f?.toString().trim()).length / fields.length * 100);
+  })();
 
-  const handleImageChange = (e) => {
+  const handleChange = e => setStudent({ ...student, [e.target.name]: e.target.value });
+
+  const handleImageChange = e => {
     const file = e.target.files[0];
-    if (file && file.size <= 2 * 1024 * 1024) {
-      const reader = new FileReader();
-      reader.onloadend = () => setStudent({ ...student, profilePic: reader.result });
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { showToast("error", "Image must be under 2 MB."); return; }
+    const reader = new FileReader();
+    reader.onloadend = () => setStudent(s => ({ ...s, profilePic: reader.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleEdit = () => {
+    setSnapshot({ ...student });
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    if (snapshot) setStudent(snapshot);
+    setIsEditing(false);
   };
 
   const handleSave = async () => {
+    setSaving(true);
     try {
       await api.put("/student/update-profile", student);
       setIsEditing(false);
-      setStatusMsg({ type: "success", text: "Profile Updated Successfully ✅" });
+      setSnapshot(null);
+      showToast("success", "Profile updated successfully ✅");
     } catch (err) {
-      console.error("Update Error:", err);
-      setStatusMsg({ type: "error", text: "Update Failed ❌ Check Backend Connection" });
+      showToast("error", "Update failed — please try again ❌");
+    } finally {
+      setSaving(false);
     }
-    setTimeout(() => setStatusMsg({ type: "", text: "" }), 3000);
   };
 
+  const avatarSrc = student.profilePic ||
+    (student.gender === "Female" ? FEMALE_AVATAR : MALE_AVATAR);
+
   if (loading) return (
-    <div className="loader-container">
-      <div className="spinner"></div>
-      <p>Initializing Student Profile...</p>
+    <div className="sp-loader">
+      <div className="sp-spinner" />
+      <p>Loading profile…</p>
     </div>
   );
 
   return (
-    <div className="student-profile-container">
-      <h2 className="profile-title">🎓 Student Profile</h2>
+    <div className="sp-page">
 
-      {statusMsg.text && (
-        <div className={`status-toast ${statusMsg.type}`}>
-          {statusMsg.text}
-        </div>
+      {/* Toast */}
+      {toast.text && (
+        <div className={`sp-toast sp-toast--${toast.type}`}>{toast.text}</div>
       )}
 
-      <div className="profile-card">
-        {/* LEFT SIDEBAR: IDENTITY */}
-        <div className="profile-left">
-          <div className="avatar-uploader">
-            <div 
-              className={`avatar-frame ${isEditing ? "editable" : ""}`} 
+      {/* Hero header */}
+      <div className="sp-hero">
+        <div className="sp-hero__orb sp-hero__orb--1" />
+        <div className="sp-hero__orb sp-hero__orb--2" />
+        <div className="sp-hero__inner">
+          <div className="sp-hero__avatar-wrap">
+            <div
+              className={`sp-hero__avatar-frame ${isEditing ? "sp-hero__avatar-frame--edit" : ""}`}
               onClick={() => isEditing && fileInputRef.current.click()}
+              title={isEditing ? "Click to change photo" : ""}
             >
-              <img 
-                src={student.profilePic || (student.gender === "Female" ? FEMALE_AVATAR : MALE_AVATAR)} 
-                alt="Student" 
-                className="profile-image"
-              />
-              {isEditing && <div className="upload-overlay">Change Photo</div>}
+              <img src={avatarSrc} alt={student.name} className="sp-hero__avatar-img" />
+              {isEditing && (
+                <div className="sp-hero__avatar-overlay">
+                  <span>📷 Change</span>
+                </div>
+              )}
             </div>
-            <input type="file" ref={fileInputRef} onChange={handleImageChange} hidden />
+            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} hidden />
           </div>
 
-          <h3>{student.name || "Set Name"}</h3>
-          <p className="specialization-text">{student.qualification || "Student"}</p>
-          
-          <div className="profile-strength-box">
-             <div className="strength-header">
-               <label>Profile Strength</label>
-               <span>{calculateProgress()}%</span>
-             </div>
-             <div className="strength-bar">
-               <div className="strength-fill" style={{ width: `${calculateProgress()}%` }}></div>
-             </div>
+          <div className="sp-hero__info">
+            <div className="sp-hero__role-chip">🎓 Student</div>
+            <h1 className="sp-hero__name">{student.name || "Your Name"}</h1>
+            <p className="sp-hero__email">{student.email}</p>
+            <div className="sp-hero__meta">
+              {student.qualification && <span className="sp-chip sp-chip--blue">{student.qualification}</span>}
+              {student.year && <span className="sp-chip sp-chip--purple">Year {student.year}</span>}
+              {student.city && <span className="sp-chip sp-chip--green">📍 {student.city}</span>}
+            </div>
+          </div>
+
+          {/* Profile strength */}
+          <div className="sp-hero__strength">
+            <div className="sp-strength__header">
+              <span>Profile Strength</span>
+              <span className="sp-strength__pct">{progress}%</span>
+            </div>
+            <div className="sp-strength__bar">
+              <div
+                className="sp-strength__fill"
+                style={{ width: `${progress}%`,
+                  background: progress >= 80 ? "linear-gradient(90deg,#16a34a,#4ade80)"
+                            : progress >= 50 ? "linear-gradient(90deg,#2563eb,#60a5fa)"
+                            : "linear-gradient(90deg,#d97706,#fbbf24)"
+                }}
+              />
+            </div>
+            <p className="sp-strength__hint">
+              {progress < 50 ? "Add more details to complete your profile"
+               : progress < 100 ? "Almost there — fill remaining fields"
+               : "Your profile is complete 🎉"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="sp-body">
+
+        {/* Action bar */}
+        <div className="sp-action-bar">
+          <div className="sp-action-bar__left">
+            <h2 className="sp-action-bar__title">
+              {isEditing ? "Editing Profile" : "Profile Details"}
+            </h2>
+            <p className="sp-action-bar__sub">
+              {isEditing ? "Make your changes and save" : "View your personal and academic information"}
+            </p>
+          </div>
+          <div className="sp-action-bar__right">
+            {!isEditing ? (
+              <button className="sp-btn sp-btn--edit" onClick={handleEdit}>
+                ✏️ Edit Profile
+              </button>
+            ) : (
+              <>
+                <button className="sp-btn sp-btn--cancel" onClick={handleCancel} disabled={saving}>
+                  Cancel
+                </button>
+                <button className="sp-btn sp-btn--save" onClick={handleSave} disabled={saving}>
+                  {saving ? <><span className="sp-btn-spinner" /> Saving…</> : "💾 Save Changes"}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* RIGHT SIDE: FORMS */}
-        <div className="profile-right">
-          {/* Section: Basic Info */}
-          <div className="form-section-label">Basic Information</div>
-          <div className="form-group">
-            <label>Full Name</label>
-            <input type="text" name="name" value={student.name} onChange={handleChange} disabled={!isEditing} placeholder="Enter Full Name" />
-          </div>
+        {/* Cards grid */}
+        <div className="sp-cards">
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Email Address</label>
-              <input type="email" value={student.email} disabled className="readonly-input" />
+          {/* Basic Information */}
+          <div className="sp-card sp-card--full">
+            <div className="sp-card__header">
+              <div className="sp-card__icon sp-card__icon--blue">👤</div>
+              <h3 className="sp-card__title">Basic Information</h3>
             </div>
-
-           <div className="form-group">
-  <label>Phone Number</label>
-  <input
-    type="text"
-    name="phone"
-    value={student.phone}
-    onChange={handleChange}
-    disabled={!isEditing}
-    placeholder="+91 00000 00000"
-  />
-</div>
-             
-
-            <div className="form-group">
-              <label>Gender</label>
-              <select name="gender" value={student.gender} onChange={handleChange} disabled={!isEditing}>
-                <option value="">Select</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Section: Academic Info */}
-          <div className="form-section-label">Academic Details</div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Qualification</label>
-              <input type="text" name="qualification" value={student.qualification} onChange={handleChange} disabled={!isEditing} placeholder="Enter Qualification" />
-            </div>
-            <div className="form-group">
-              <label>Year/Semester</label>
-              <input type="text" name="year" value={student.year} onChange={handleChange} disabled={!isEditing} placeholder="Enter Year/Semester" />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Skills</label>
-            <input type="text" name="skills" value={student.skills} onChange={handleChange} disabled={!isEditing} placeholder="Enter Your Skills" />
-          </div>
-
-          {/* Section: Address */}
-          <div className="form-section-label">Address & Location</div>
-          <div className="form-group">
-            <label>Street Address</label>
-            <input type="text" name="address" value={student.address} onChange={handleChange} disabled={!isEditing} placeholder="Enter Street Address" />
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>City</label>
-              <input type="text" name="city" value={student.city} onChange={handleChange} disabled={!isEditing} placeholder="Enter City" />
-            </div>
-            <div className="form-group">
-              <label>State</label>
-              <input type="text" name="state" value={student.state} onChange={handleChange} disabled={!isEditing} placeholder="Enter State" />
-            </div>
-            <div className="form-group">
-              <label>Pincode</label>
-              <input type="text" name="pincode" value={student.pincode} onChange={handleChange} disabled={!isEditing} placeholder="Enter Pincode" />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Bio</label>
-            <textarea name="bio" value={student.bio} onChange={handleChange} disabled={!isEditing} placeholder="Enter your bio here..." />
-          </div>
-
-          <div className="button-group">
-            {!isEditing ? (
-              <button className="edit-btn" onClick={() => setIsEditing(true)}>✏ Edit Profile</button>
-            ) : (
-              <div className="edit-actions">
-                <button className="save-btn" onClick={handleSave}>💾 Save Changes</button>
-                <button className="discard-btn" onClick={() => setIsEditing(false)}>Cancel</button>
+            <div className="sp-card__body">
+              <div className="sp-grid sp-grid--3">
+                <div className="sp-field">
+                  <label className="sp-label">Full Name</label>
+                  <input className="sp-input" name="name" type="text"
+                    value={student.name} onChange={handleChange}
+                    disabled={!isEditing} placeholder="Your full name" />
+                </div>
+                <div className="sp-field">
+                  <label className="sp-label">Email Address</label>
+                  <input className="sp-input sp-input--readonly" type="email"
+                    value={student.email} disabled
+                    title="Email cannot be changed" />
+                </div>
+                <div className="sp-field">
+                  <label className="sp-label">Phone Number</label>
+                  <input className="sp-input" name="phone" type="text"
+                    value={student.phone} onChange={handleChange}
+                    disabled={!isEditing} placeholder="+91 00000 00000" />
+                </div>
+                <div className="sp-field">
+                  <label className="sp-label">Gender</label>
+                  <select className="sp-input sp-select" name="gender"
+                    value={student.gender} onChange={handleChange} disabled={!isEditing}>
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
               </div>
-            )}
+            </div>
           </div>
+
+          {/* Academic Details */}
+          <div className="sp-card">
+            <div className="sp-card__header">
+              <div className="sp-card__icon sp-card__icon--purple">🎓</div>
+              <h3 className="sp-card__title">Academic Details</h3>
+            </div>
+            <div className="sp-card__body">
+              <div className="sp-grid sp-grid--2">
+                <div className="sp-field">
+                  <label className="sp-label">Qualification</label>
+                  <input className="sp-input" name="qualification" type="text"
+                    value={student.qualification} onChange={handleChange}
+                    disabled={!isEditing} placeholder="e.g. B.Tech, MCA" />
+                </div>
+                <div className="sp-field">
+                  <label className="sp-label">Year / Semester</label>
+                  <input className="sp-input" name="year" type="text"
+                    value={student.year} onChange={handleChange}
+                    disabled={!isEditing} placeholder="e.g. 3rd Year" />
+                </div>
+                <div className="sp-field sp-field--full">
+                  <label className="sp-label">Skills</label>
+                  <input className="sp-input" name="skills" type="text"
+                    value={student.skills} onChange={handleChange}
+                    disabled={!isEditing} placeholder="e.g. Java, React, MySQL" />
+                  <p className="sp-hint">Separate skills with commas</p>
+                </div>
+                <div className="sp-field sp-field--full">
+                  <label className="sp-label">Bio</label>
+                  <textarea className="sp-textarea" name="bio"
+                    value={student.bio} onChange={handleChange}
+                    disabled={!isEditing}
+                    placeholder="Tell us about yourself — your goals, interests and aspirations…" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Address */}
+          <div className="sp-card">
+            <div className="sp-card__header">
+              <div className="sp-card__icon sp-card__icon--green">📍</div>
+              <h3 className="sp-card__title">Address & Location</h3>
+            </div>
+            <div className="sp-card__body">
+              <div className="sp-grid sp-grid--2">
+                <div className="sp-field sp-field--full">
+                  <label className="sp-label">Street Address</label>
+                  <input className="sp-input" name="address" type="text"
+                    value={student.address} onChange={handleChange}
+                    disabled={!isEditing} placeholder="House no., street, area" />
+                </div>
+                <div className="sp-field">
+                  <label className="sp-label">City</label>
+                  <input className="sp-input" name="city" type="text"
+                    value={student.city} onChange={handleChange}
+                    disabled={!isEditing} placeholder="City" />
+                </div>
+                <div className="sp-field">
+                  <label className="sp-label">State</label>
+                  <input className="sp-input" name="state" type="text"
+                    value={student.state} onChange={handleChange}
+                    disabled={!isEditing} placeholder="State" />
+                </div>
+                <div className="sp-field">
+                  <label className="sp-label">Pincode</label>
+                  <input className="sp-input" name="pincode" type="text"
+                    value={student.pincode} onChange={handleChange}
+                    disabled={!isEditing} placeholder="560001" />
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
