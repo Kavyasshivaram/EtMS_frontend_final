@@ -79,7 +79,7 @@ function CourseCard({ course, index, onClick }) {
         </div>
         <div className="ac2-card__stat">
           <FaLayerGroup className="ac2-card__stat-icon" />
-          <span>Course #{course.id}</span>
+          <span>Course {course.id}</span>
         </div>
       </div>
 
@@ -194,10 +194,7 @@ function AllCourses() {
             <span className="ac2-strip-stat__lbl">Total Students</span>
           </div>
           <div className="ac2-strip-divider" />
-          <div className="ac2-strip-stat">
-            <span className="ac2-strip-stat__num">{filteredCourses.length}</span>
-            <span className="ac2-strip-stat__lbl">Showing</span>
-          </div>
+         
         </div>
       </header>
 

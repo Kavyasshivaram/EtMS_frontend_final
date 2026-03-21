@@ -10,7 +10,7 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeJobBlock, setActiveJobBlock] = useState("locations");
   // State for mobile dropdowns
-  const [mobileDrop, setMobileDrop] = useState(null); 
+  const [mobileDrop, setMobileDrop] = useState(null);
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
@@ -36,7 +36,7 @@ const Navbar = () => {
           <div className="nav-container-flex">
             <div className="contact-links">
               <span className="info-item">
-                <FaPhoneAlt /> <a href="tel:+917022928198">+91 7022928198</a>
+                <FaPhoneAlt /> <span className="call-label">Call for Enquiry: </span> <a href="tel:+917022928198">+91 7022928198</a>
               </span>
               <span className="line-sep">|</span>
               <span className="info-item hide-mobile">
@@ -55,12 +55,10 @@ const Navbar = () => {
         {/* MAIN HEADER */}
         <header className="main-header-wrap">
           <div className="nav-container-flex">
-            
+
             <Link to="/" className="brand-logo-wrap" onClick={closeMenu}>
-              <div className="logo-box-blue"><FaGraduationCap /></div>
-              <div className="brand-titles">
-                <h1 className="main-title">EtMS</h1>
-                <p className="sub-title">Smart Learning</p>
+              <div className="logo-container-white">
+                <img src="appteknow_logo.png" alt="AppTechno Careers" className="brand-logo-img" />
               </div>
             </Link>
 
@@ -69,72 +67,77 @@ const Navbar = () => {
               <ul className="nav-menu-list">
                 <li><NavLink to="/" end className="nav-link-anchor" onClick={closeMenu}>Home</NavLink></li>
 
-                {/* Courses Mega Menu */}
-                <li className={`has-mega-menu ${mobileDrop === 'courses' ? 'mob-active' : ''}`}>
-                  <div className="nav-link-anchor" onClick={() => handleMobileDrop('courses')}>
-                    <span>Courses <span className="promo-tag">OFFER</span></span>
-                    <FaChevronDown className={`chev-icon ${mobileDrop === 'courses' ? 'rotate' : ''}`} />
+                {/* IT Courses Dropdown */}
+                <li className={`has-mega-menu ${mobileDrop === 'it-courses' ? 'mob-active' : ''}`}>
+                  <div className="nav-link-anchor" onClick={() => handleMobileDrop('it-courses')}>
+                    <span>IT Courses <span className="promo-tag">AI</span></span>
+                    <FaChevronDown className={`chev-icon ${mobileDrop === 'it-courses' ? 'rotate' : ''}`} />
                   </div>
-                  <div className="mega-menu-panel">
-                    <div className="mega-grid-wrapper">
-                      <div className="mega-column">
-                        <h3>Certification</h3>
-                        <Link to="/course/ai" onClick={closeMenu}>AI & ML <span className="trend-label">New</span></Link>
-                        <Link to="/course/web" onClick={closeMenu}>Web Development</Link>
-                      </div>
-                      <div className="mega-column">
-                        <h3>Career</h3>
-                        <Link to="/placement/fullstack" onClick={closeMenu}>Full Stack Dev</Link>
-                        <Link to="/placement/uiux" onClick={closeMenu}>UI/UX Design</Link>
-                      </div>
+                  <div className="mega-menu-panel single-col">
+                    <div className="mega-column">
+                      <Link to="/java-training-bangalore" onClick={closeMenu}>Full Stack Java with AI</Link>
+                      <Link to="/courses/python" onClick={closeMenu}>Python Training with AI</Link>
+                      <Link to="/courses/testing" onClick={closeMenu}>Software Testing with AI</Link>
+                      <Link to="/courses/mern" onClick={closeMenu}>MERN Stack with AI</Link>
                     </div>
                   </div>
                 </li>
 
-                {/* Jobs Mega Menu */}
+                {/* Non IT Courses Dropdown */}
+                <li className={`has-mega-menu ${mobileDrop === 'non-it' ? 'mob-active' : ''}`}>
+                  <div className="nav-link-anchor" onClick={() => handleMobileDrop('non-it')}>
+                    <span>Non IT Courses</span>
+                    <FaChevronDown className={`chev-icon ${mobileDrop === 'non-it' ? 'rotate' : ''}`} />
+                  </div>
+                  <div className="mega-menu-panel single-col">
+                    <div className="mega-column">
+                      <Link to="/courses/data-analytics" onClick={closeMenu}>Data Analytics</Link>
+                      <Link to="/courses/digital-marketing" onClick={closeMenu}>Digital Marketer</Link>
+                      <Link to="/courses/tally" onClick={closeMenu}>Tally ERP 9 + GST</Link>
+                      <Link to="/courses/softskills" onClick={closeMenu}>Softskills + Aptitude</Link>
+                    </div>
+                  </div>
+                </li>
+
+
+                {/* Jobs Dropdown */}
                 <li className={`has-mega-menu ${mobileDrop === 'jobs' ? 'mob-active' : ''}`}>
                   <div className="nav-link-anchor" onClick={() => handleMobileDrop('jobs')}>
                     <span>Jobs</span>
                     <FaChevronDown className={`chev-icon ${mobileDrop === 'jobs' ? 'rotate' : ''}`} />
                   </div>
-                  <div className="mega-menu-panel job-panel">
-                    <div className="split-layout">
-                      <div className="split-sidebar">
-                        <button 
-                          className={activeJobBlock === "locations" ? "active" : ""} 
-                          onClick={(e) => { e.stopPropagation(); setActiveJobBlock("locations"); }}
-                          onMouseEnter={() => setActiveJobBlock("locations")}
-                        >Top Locations</button>
-                        <button 
-                          className={activeJobBlock === "roles" ? "active" : ""} 
-                          onClick={(e) => { e.stopPropagation(); setActiveJobBlock("roles"); }}
-                          onMouseEnter={() => setActiveJobBlock("roles")}
-                        >Top Roles</button>
-                      </div>
-                      <div className="split-content">
-                        {activeJobBlock === "locations" ? (
-                          <div className="content-links">
-                            <Link to="/jobs/bangalore" onClick={closeMenu}>Bangalore</Link>
-                            <Link to="/jobs/mumbai" onClick={closeMenu}>Mumbai</Link>
-                          </div>
-                        ) : (
-                          <div className="content-links">
-                            <Link to="/jobs/java" onClick={closeMenu}>Java Developer</Link>
-                            <Link to="/jobs/hr" onClick={closeMenu}>HR Roles</Link>
-                          </div>
-                        )}
-                      </div>
+                  <div className="mega-menu-panel single-col">
+                    <div className="mega-column">
+                      <Link to="/jobs/bangalore" onClick={closeMenu}>Bangalore Jobs</Link>
+                      <Link to="/jobs/mumbai" onClick={closeMenu}>Mumbai Jobs</Link>
+                      <Link to="/jobs/java" onClick={closeMenu}>Java Developer Roles</Link>
+                      <Link to="/jobs/testing" onClick={closeMenu}>Testing Roles</Link>
                     </div>
                   </div>
                 </li>
 
-                <li><NavLink to="/counselor" className="nav-link-anchor" onClick={closeMenu}>Counselor <span className="new-tag">FREE</span></NavLink></li>
+                {/* Placements Dropdown */}
+                <li className={`has-mega-menu ${mobileDrop === 'placements' ? 'mob-active' : ''}`}>
+                  <div className="nav-link-anchor" onClick={() => handleMobileDrop('placements')}>
+                    <span>Placements</span>
+                    <FaChevronDown className={`chev-icon ${mobileDrop === 'placements' ? 'rotate' : ''}`} />
+                  </div>
+                  <div className="mega-menu-panel single-col">
+                    <div className="mega-column">
+                      <Link to="/placements/gallery" onClick={closeMenu}>Student Gallery</Link>
+                      <Link to="/placements/testimonials" onClick={closeMenu}>Testimonials</Link>
+                      <Link to="/placements/offers" onClick={closeMenu}>Offer Letters</Link>
+                    </div>
+                  </div>
+                </li>
+
                 <li><NavLink to="/internships" className="nav-link-anchor" onClick={closeMenu}>Internships</NavLink></li>
+                <li><NavLink to="/contact" className="nav-link-anchor" onClick={closeMenu}>Contact Us</NavLink></li>
 
                 {/* MOBILE ONLY AUTH SECTION */}
                 <li className="mobile-auth-drawer">
-                   <Link to="/login" className="mob-login" onClick={closeMenu}>Login</Link>
-                   <Link to="/register" className="mob-reg" onClick={closeMenu}>Register Now</Link>
+                  <Link to="/login" className="mob-login" onClick={closeMenu}>Login</Link>
+                  <Link to="/register" className="mob-reg" onClick={closeMenu}>Register Now</Link>
                 </li>
               </ul>
             </nav>
@@ -143,7 +146,7 @@ const Navbar = () => {
             <div className="auth-action-btns">
               <Link to="/login" className="login-link hide-mobile">Login</Link>
               <Link to="/register" className="register-btn-solid hide-mobile">Register Now</Link>
-              
+
               <button className="mobile-hamburger" onClick={toggleMenu}>
                 {menuOpen ? <FaTimes /> : <FaBars />}
               </button>

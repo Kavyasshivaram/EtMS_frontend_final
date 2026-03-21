@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Outlet, useNavigate, NavLink, Link } from "react-router-dom";
+import Footer from "../components/Footer";
 import { 
   FaPhoneAlt, FaEnvelope, FaFacebookF, FaTwitter, 
   FaLinkedinIn, FaInstagram, FaGraduationCap, FaSignOutAlt,
@@ -68,16 +69,23 @@ function DashboardLayout() {
             <NavLink to={`/${rolePath}/dashboard`} className="nav-menu-link">📊 Dashboard</NavLink>
 
             {/* SUPER ADMIN */}
-            {user?.role === "SUPER_ADMIN" && (
+            {user?.role === "SUPERADMIN" && (
               <div className="nav-dropdown">
                 <button className={`nav-menu-link ${activeDropdown === 'super' ? 'active-btn' : ''}`} onClick={() => toggleDropdown('super')}>
                   <FaShieldAlt /> Governance <FaChevronDown className={`drop-icon ${activeDropdown === 'super' ? 'rotate' : ''}`} />
                 </button>
                 {activeDropdown === 'super' && (
                   <div className="dropdown-content">
+                   
                     <NavLink to="/superadmin/create-admin" onClick={() => setActiveDropdown(null)}>🛡️ Manage Admins</NavLink>
-                    <NavLink to="/superadmin/marketers" onClick={() => setActiveDropdown(null)}>👨‍💼 Manage Marketers</NavLink>
-                    <NavLink to="/superadmin/revenue" onClick={() => setActiveDropdown(null)}>💰 Revenue Reports</NavLink>
+                     <NavLink to="/superadmin/create-user" onClick={() => setActiveDropdown(null)}>👤+ Provision User</NavLink>
+                    <NavLink to="/superadmin/users" onClick={() => setActiveDropdown(null)}>👥 Global Registry</NavLink>
+                   
+                    <NavLink to="/superadmin/performance" onClick={() => setActiveDropdown(null)}>🧠 Platform Intelligence</NavLink>
+                    <NavLink to="/superadmin/finance" onClick={() => setActiveDropdown(null)}>💰 Financial Oversight</NavLink>
+                    <NavLink to="/superadmin/meetings" onClick={() => setActiveDropdown(null)}>🤝 Strategy Sessions</NavLink>
+                    <NavLink to="/superadmin/messages" onClick={() => setActiveDropdown(null)}>💬 Communication Hub</NavLink>
+                    <NavLink to="/superadmin/profile" onClick={() => setActiveDropdown(null)}>👤 Command Identity</NavLink>
                     <NavLink to="/superadmin/settings" onClick={() => setActiveDropdown(null)}>⚙️ System Settings</NavLink>
                   </div>
                 )}
@@ -191,7 +199,10 @@ function DashboardLayout() {
 
           <div className="user-actions-right">
             <div className="user-role-badge">
-              <span className="role-text-label">{user?.role?.replace("_", " ")}</span>
+              <div className="role-badge-content">
+                <span className="role-text-label">{user?.role?.replace("_", " ")}</span>
+                {user?.studentId && <span className="student-id-label">{user.studentId}</span>}
+              </div>
               <div className="avatar-circle">{avatarLetter}</div>
             </div>
             {/* <button className="nav-logout-btn" onClick={handleLogout}>
@@ -200,7 +211,6 @@ function DashboardLayout() {
             {/* ── LOGOUT: clears activity so next login starts fresh ── */}
                 <button className="sd-drop-btn sd-drop-btn--danger" onClick={() => {
                   handleLogout();
-                  clearSessionActivity();   // wipe THIS session's activity
                   localStorage.clear();
                   navigate("/login");
                 }}>🚪 Logout</button>
@@ -215,6 +225,7 @@ function DashboardLayout() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

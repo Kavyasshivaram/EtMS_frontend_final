@@ -260,10 +260,13 @@ function AdminDashboard() {
   const trainersCount = users.filter(u => u.role?.roleName === "TRAINER").length;
   const activeCount   = users.filter(u => u.status === "ACTIVE").length;
 
+  // ── CHANGED: only STUDENT role users appear in the approval section ──
   const approvalList = users
     .filter(u => {
+      const isStudent = u.role?.roleName === "STUDENT";
       const t = approvalSearch.toLowerCase();
-      return !t || u.name?.toLowerCase().includes(t) || u.email?.toLowerCase().includes(t);
+      const matchSearch = !t || u.name?.toLowerCase().includes(t) || u.email?.toLowerCase().includes(t);
+      return isStudent && matchSearch;
     })
     .sort((a, b) => {
       if (a.status==="PENDING" && b.status!=="PENDING") return -1;
@@ -312,6 +315,9 @@ function AdminDashboard() {
           <div className="adm-hero__left">
             <div className="adm-greeting-chip">{greeting} 👋</div>
             <h1 className="adm-hero__name">{user?.name || "Administrator"}</h1>
+            {(user?.portalId || user?.studentId) && (
+              <div className="adm-hero__id-badge">System ID: {user.portalId || user.studentId}</div>
+            )}
             <p className="adm-hero__role">Admin Portal · EtMS Smart Learning</p>
           </div>
 
@@ -466,7 +472,8 @@ function AdminDashboard() {
                           <Avatar name={u.name} idx={idx} />
                           <div className="adm-user-cell__info">
                             <span className="adm-user-cell__name">{u.name}</span>
-                            <span className="adm-user-cell__sub">{u.email}</span>
+                            <span className="adm-user-cell__sub">{u.portalId || u.studentId || u.email}</span>
+                            {(u.portalId || u.studentId) && <span className="adm-user-cell__sub">{u.email}</span>}
                             {u.phone && <span className="adm-user-cell__sub">{u.phone}</span>}
                           </div>
                         </div>
@@ -588,7 +595,14 @@ function AdminDashboard() {
                         </div>
                       </td>
                       <td className="adm-td">
-                        <a href={`mailto:${u.email}`} className="adm-link">{u.email}</a>
+                        <div className="adm-link-group" style={{display: 'flex', flexDirection: 'column'}}>
+                          {(u.portalId || u.studentId) && (
+                            <span className="adm-id-text" style={{fontSize: '11px', color: '#64748b'}}>
+                              {u.portalId || u.studentId}
+                            </span>
+                          )}
+                          <a href={`mailto:${u.email}`} className="adm-link">{u.email}</a>
+                        </div>
                       </td>
                       <td className="adm-td adm-td--phone">{u.phone || "—"}</td>
                       {showRoleColumn && (

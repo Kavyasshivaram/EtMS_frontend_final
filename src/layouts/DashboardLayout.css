@@ -14,11 +14,11 @@
 }
 
 .nav-container-inner {
-  max-width: 1440px;
+  max-width: 1700px; /* Increased from 1440px */
   margin: 0 auto;
   display: flex;
   width: 100%;
-  padding: 0 24px;
+  padding: 0 40px; /* Increased horizontal padding for breathing room */
   box-sizing: border-box;
   align-items: center; /* Vertical alignment */
 }
@@ -154,12 +154,37 @@
 }
 
 .user-role-badge {
-  display: flex; align-items: center; gap: 8px;
-  background: #f1f5f9; padding: 5px 10px;
-  border-radius: 20px; border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 6px 6px 6px 16px;
+  border-radius: 40px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
-.role-text-label { font-size: 9px; font-weight: 800; color: var(--blue-royal); text-transform: uppercase; }
+.role-badge-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.role-text-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.student-id-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #2563eb;
+  letter-spacing: 0.2px;
+  margin-top: -1px;
+}
 
 .avatar-circle {
   width: 26px; height: 26px;
@@ -181,7 +206,7 @@
 
 /* --- CONTENT AREA --- */
 .dashboard-view-content {
-  padding: 20px 0;
+  padding: 0;
   flex: 1;
 }
 

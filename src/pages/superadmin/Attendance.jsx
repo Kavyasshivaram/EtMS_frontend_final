@@ -1,4 +1,5 @@
-import DashboardLayout from "../../layouts/DashboardLayout";
+import "./SuperAdminLists.css";
+import { FaCalendarCheck, FaChartPie, FaDownload } from "react-icons/fa6";
 
 function Attendance() {
 
@@ -8,39 +9,77 @@ function Attendance() {
     { id: 3, student: "Vijay", course: "UI/UX", percent: 80 },
   ];
 
-  const getStatus = (percent) => {
-    return percent >= 75 ? "Good" : "Low";
+  const getStatusClass = (percent) => {
+    return percent >= 75 ? "sl-status-pill--active" : "sl-status-pill--low";
   };
 
   return (
-    <DashboardLayout>
-      <div className="page-content">
-        <h2>📅 Attendance Management</h2>
+    <div className="sa-page">
+        <div className="sa-wrapper sl-wrapper-extra">
+            
+            {/* ── SIDE PANEL ── */}
+            <div className="sa-side-panel">
+                <div className="sa-side-brand">
+                    <span className="cu-side-et">Et</span><span className="cu-side-ms">MS</span>
+                </div>
+                <h2 className="sa-side-title">Presence Log</h2>
+                <p className="sa-side-desc">
+                    Monitoring institutional engagement metrics and academic attendance regularity across all units.
+                </p>
 
-        <table className="custom-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Student Name</th>
-              <th>Course</th>
-              <th>Attendance %</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {attendanceData.map((item) => (
-              <tr key={item.id}>
-                <td>{item.id}</td>
-                <td>{item.student}</td>
-                <td>{item.course}</td>
-                <td>{item.percent}%</td>
-                <td>{getStatus(item.percent)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </DashboardLayout>
+                <div className="sl-side-card">
+                    <span className="sl-sc-label">AVERAGE ENGAGEMENT</span>
+                    <div className="sl-sc-value">78.3%</div>
+                </div>
+
+                <div className="sl-side-illustration">
+                    <FaCalendarCheck size={120} style={{opacity: 0.15}} />
+                </div>
+            </div>
+
+            {/* ── MAIN CONTENT ── */}
+            <div className="sl-main-panel">
+                <div className="sl-header">
+                    <div className="sl-header-left">
+                        <h1>Attendance Audit</h1>
+                        <p>Real-time verification of student engagement across academic streams</p>
+                    </div>
+                    <button className="sl-btn-primary">
+                        <FaDownload /> Export Dataset
+                    </button>
+                </div>
+
+                <div className="sl-table-card">
+                    <table className="sl-table">
+                        <thead>
+                            <tr>
+                                <th>Unit ID</th>
+                                <th>Student Identity</th>
+                                <th>Academic Stream</th>
+                                <th>Temporal Weight %</th>
+                                <th>Heuristic Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {attendanceData.map((item) => (
+                                <tr key={item.id}>
+                                    <td>#ST-{item.id}</td>
+                                    <td style={{fontWeight: 700}}>{item.student}</td>
+                                    <td>{item.course}</td>
+                                    <td>{item.percent}%</td>
+                                    <td>
+                                        <span className={`sl-status-pill ${getStatusClass(item.percent)}`}>
+                                            {item.percent >= 75 ? "Optimal" : "Sub-Nominal"}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
   );
 }
 

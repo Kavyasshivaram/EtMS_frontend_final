@@ -120,7 +120,12 @@ function StudentProfile() {
           <div className="sp-hero__info">
             <div className="sp-hero__role-chip">🎓 Student</div>
             <h1 className="sp-hero__name">{student.name || "Your Name"}</h1>
-            <p className="sp-hero__email">{student.email}</p>
+            <div className="sp-hero__ids">
+              <p className="sp-hero__email">{student.email}</p>
+              {(student.portalId || student.studentId) && (
+                <p className="sp-hero__student-id">ID: {student.portalId || student.studentId}</p>
+              )}
+            </div>
             <div className="sp-hero__meta">
               {student.qualification && <span className="sp-chip sp-chip--blue">{student.qualification}</span>}
               {student.year && <span className="sp-chip sp-chip--purple">Year {student.year}</span>}
@@ -207,6 +212,14 @@ function StudentProfile() {
                     value={student.email} disabled
                     title="Email cannot be changed" />
                 </div>
+                {(student.portalId || student.studentId) && (
+                  <div className="sp-field">
+                    <label className="sp-label">System / Portal ID</label>
+                    <input className="sp-input sp-input--readonly" type="text"
+                      value={student.portalId || student.studentId} disabled
+                      title="ID is permanent" />
+                  </div>
+                )}
                 <div className="sp-field">
                   <label className="sp-label">Phone Number</label>
                   <input className="sp-input" name="phone" type="text"

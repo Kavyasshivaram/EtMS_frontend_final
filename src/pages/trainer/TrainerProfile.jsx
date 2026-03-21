@@ -18,7 +18,8 @@ function TrainerProfile() {
   const [trainer, setTrainer] = useState({
     name: "", email: userEmail, phone: "", gender: "",
     specialization: "", experience: "", qualification: "", bio: "",
-    profilePic: "", address: "", city: "", state: "", pincode: ""
+    profilePic: "", address: "", city: "", state: "", pincode: "",
+    studentId: ""
   });
 
   const [snapshot, setSnapshot] = useState(null);
@@ -119,7 +120,12 @@ function TrainerProfile() {
           <div className="tp-hero__info">
             <div className="tp-hero__role-chip">👤 Trainer</div>
             <h1 className="tp-hero__name">{trainer.name || "Your Name"}</h1>
-            <p className="tp-hero__email">{trainer.email}</p>
+            <div className="tp-hero__ids">
+              <p className="tp-hero__email">{trainer.email}</p>
+              {(trainer.portalId || trainer.studentId) && (
+                <p className="tp-hero__student-id">ID: {trainer.portalId || trainer.studentId}</p>
+              )}
+            </div>
             <div className="tp-hero__meta">
               {trainer.specialization && <span className="tp-chip tp-chip--blue">{trainer.specialization}</span>}
               {trainer.experience && <span className="tp-chip tp-chip--amber">⏱ {trainer.experience} yrs exp</span>}
@@ -206,6 +212,14 @@ function TrainerProfile() {
                     value={trainer.email} disabled
                     title="Email cannot be changed" />
                 </div>
+                {(trainer.portalId || trainer.studentId) && (
+                  <div className="tp-field">
+                    <label className="tp-label">Staff / Trainer ID</label>
+                    <input className="tp-input sp-input--readonly" type="text"
+                      value={trainer.portalId || trainer.studentId} disabled
+                      title="ID is permanent" />
+                  </div>
+                )}
                 <div className="tp-field">
                   <label className="tp-label">Phone Number</label>
                   <input className="tp-input" name="phone" type="text"

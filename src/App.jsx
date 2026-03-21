@@ -2,6 +2,8 @@ import { useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import AppRoutes from "./routes/AppRoutes";
+import ChatWidget from "./components/ChatWidget";
+import ScrollToTop from "./components/ScrollToTop";
 
 function LayoutWrapper() {
   const location = useLocation();
@@ -16,9 +18,11 @@ function LayoutWrapper() {
 
   return (
     <>
+      <ScrollToTop />
       {!hideLayout && <Navbar />}
       <AppRoutes />
       {!hideLayout && <Footer />}
+      <ChatWidget />
     </>
   );
 }

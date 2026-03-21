@@ -239,7 +239,7 @@ function StudentProfileModal({ student, colorScheme, onClose }) {
               <h3 className="spm-identity__name">{displayName}</h3>
               <p className="spm-identity__qual">{qualification || "Student"}</p>
               <div className="spm-identity__badges">
-                <span className="spm-badge spm-badge--id"><FaIdBadge /> ID #{student.studentId}</span>
+                <span className="spm-badge spm-badge--id"><FaIdBadge /> {student.formattedId || `ID ${student.studentId}`}</span>
                 <span className="spm-badge spm-badge--active"><FaCheckCircle /> Active</span>
               </div>
             </div>
@@ -499,7 +499,7 @@ function CourseDetails() {
             <div className="cd2-breadcrumb">
               <span className="cd2-breadcrumb__parent" onClick={() => navigate(-1)}>Academic Catalog</span>
               <span className="cd2-breadcrumb__sep">›</span>
-              <span className="cd2-breadcrumb__current">{course.courseName}</span>
+              
             </div>
           </div>
           <div className="cd2-nav__right">
@@ -562,7 +562,7 @@ function CourseDetails() {
             <div className="cd2-metric">
               <div className="cd2-metric__icon cd2-metric__icon--green"><FaIdBadge /></div>
               <div className="cd2-metric__body">
-                <span className="cd2-metric__val">#{course.id}</span>
+                <span className="cd2-metric__val">{course.id}</span>
                 <span className="cd2-metric__lbl">Course ID</span>
               </div>
             </div>
@@ -620,7 +620,7 @@ function CourseDetails() {
 
             {/* Hint */}
             <p className="cd2-click-hint">
-              💡 Click a student's name to view their profile &nbsp;·&nbsp;
+               Click a student's name to view their profile &nbsp;·&nbsp;
               Use <strong>Edit</strong> to update contact &nbsp;·&nbsp;
               Use <strong>Activate / Deactivate</strong> to manage access
             </p>
@@ -671,7 +671,7 @@ function CourseDetails() {
                               <span className="cd2-student__name cd2-student__name--link">
                                 {student.studentName}
                               </span>
-                              <span className="cd2-student__id">ID #{student.studentId}</span>
+                              <span className="cd2-student__id">{student.formattedId || `ID ${student.studentId}`}</span>
                             </div>
                           </div>
                         </td>

@@ -473,6 +473,9 @@ function StudentDashboard() {
         <div className="sd-hero__left">
           <div className="sd-greeting-tag">{greeting} 👋</div>
           <h1 className="sd-hero__name">{user?.name || "Student"}</h1>
+          {(user?.portalId || user?.studentId) && (
+            <div className="sd-hero__student-id">System ID: {user.portalId || user.studentId}</div>
+          )}
           <p className="sd-hero__sub">Keep pushing — you're making great progress today.</p>
           <div className="sd-hero__meta">
             {/* Dynamic: shows ALL batch names */}
@@ -550,6 +553,9 @@ function StudentDashboard() {
                   <div>
                     <div className="sd-profile-name">{user?.name}</div>
                     <div className="sd-profile-email">{user?.email}</div>
+                    {(user?.portalId || user?.studentId) && (
+                      <div className="sd-profile-student-id">ID: {user.portalId || user.studentId}</div>
+                    )}
                   </div>
                 </div>
                 <hr className="sd-divider" />

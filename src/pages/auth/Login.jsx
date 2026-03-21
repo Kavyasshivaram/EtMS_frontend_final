@@ -23,7 +23,7 @@ function Login() {
       localStorage.setItem("user", JSON.stringify(user));
 
       const routes = {
-        SUPER_ADMIN: "/superadmin/dashboard",
+        SUPERADMIN: "/superadmin/dashboard",
         ADMIN: "/admin/dashboard",
         TRAINER: "/trainer/dashboard",
         STUDENT: "/student/dashboard",

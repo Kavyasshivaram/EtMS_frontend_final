@@ -5,9 +5,40 @@ import {
   FaRobot, FaComments, FaHandHoldingUsd, FaCheckCircle
 } from 'react-icons/fa';
 import '../styles/Home.css';
+import SuccessStories from '../components/SuccessStories';
+import LeadForm from '../components/LeadForm';
+import ConsultationModal from '../components/ConsultationModal';
+import { Link } from 'react-router-dom';
 
 const Home = () => {
     const [searchQuery, setSearchQuery] = useState("");
+    const [isConsultModalOpen, setIsConsultModalOpen] = useState(false);
+    const [selectedCourse, setSelectedCourse] = useState("");
+    
+    const openConsultModal = (course) => {
+        setSelectedCourse(course);
+        setIsConsultModalOpen(true);
+    };
+    const searchData = [
+        { title: "Full Stack Java", type: "Course", link: "/courses/java" },
+        { title: "Python Training", type: "Course", link: "/courses/python" },
+        { title: "MERN Stack", type: "Course", link: "/courses/mern" },
+        { title: "Software Testing", type: "Course", link: "/courses/testing" },
+        { title: "Data Analytics", type: "Course", link: "/courses/data-analytics" },
+        { title: "Java Jobs in Bangalore", type: "Job", link: "/jobs/java" },
+        { title: "Tester Openings", type: "Job", link: "/jobs/testing" },
+    ];
+
+    const filteredResults = searchQuery.length >= 2
+        ? searchData.filter(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()))
+        : [];
+
+    const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        if (filteredResults.length > 0) {
+            window.location.href = filteredResults[0].link;
+        }
+    };
 
     const programs = [
         {
@@ -61,7 +92,7 @@ const Home = () => {
                             </p>
 
                             <div className="search-wrapper">
-                                <div className="search-inner">
+                                <form className="search-inner" onSubmit={handleSearchSubmit}>
                                     <FaSearch className="search-icon" />
                                     <input 
                                         type="text" 
@@ -69,8 +100,18 @@ const Home = () => {
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                     />
-                                    <button className="btn-search">Search</button>
-                                </div>
+                                    <button type="submit" className="btn-search">Search</button>
+                                </form>
+                                {filteredResults.length > 0 && (
+                                    <div className="search-suggestions-overlay">
+                                        {filteredResults.map((item, idx) => (
+                                            <Link key={idx} to={item.link} className="suggestion-row">
+                                                <span className="s-title">{item.title}</span>
+                                                <span className="s-tag">{item.type}</span>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                             
                             <div className="hero-badges">
@@ -102,7 +143,12 @@ const Home = () => {
                                     </ul>
                                 </div>
                                 <div className="card-footer">
-                                    <button className="btn-consult">Schedule a consultation</button>
+                                    <button 
+                                        className="btn-consult"
+                                        onClick={() => openConsultModal(item.title)}
+                                    >
+                                        Schedule a consultation
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -123,7 +169,7 @@ const Home = () => {
                         <p>
                             Starting in the year 2000, we have a <strong>20+ years Legacy</strong>, having trained over 70,000 students and placed them in reputed MNCs.
                         </p>
-                        <button className="btn-primary-blue">Learn More About Us</button>
+                        <Link to="/about-us" className="btn-primary-blue">Learn More About Us</Link>
                     </div>
                     <div className="why-choose-grid">
                         <div className="why-card">
@@ -175,14 +221,36 @@ const Home = () => {
                 </div>
             </section>
 
+            {/* CONTACT FORM (NEW) */}
+            <LeadForm />
+
+            <ConsultationModal 
+                isOpen={isConsultModalOpen} 
+                onClose={() => setIsConsultModalOpen(false)} 
+                courseTitle={selectedCourse}
+            />
+
+            {/* SUCCESS STORIES */}
+            <SuccessStories />
+
             {/* CTA */}
             <section className="home-cta">
                 <div className="container">
                     <h2>Ready to start your professional journey?</h2>
                     <p>Join the thousands of students already working in Top MNCs.</p>
                     <div className="cta-btns">
-                        <button className="btn-blue-solid">Book Free Demo Class</button>
-                        <button className="btn-blue-outline">Talk to Counsellor</button>
+                        <button 
+                            className="btn-blue-solid"
+                            onClick={() => openConsultModal("Free Demo Class")}
+                        >
+                            Book Free Demo Class
+                        </button>
+                        <button 
+                            className="btn-blue-outline"
+                            onClick={() => window.open('https://wa.me/917022928198', '_blank')}
+                        >
+                            Talk to Counsellor
+                        </button>
                     </div>
                 </div>
             </section>

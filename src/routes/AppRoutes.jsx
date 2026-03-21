@@ -3,13 +3,26 @@ import { Routes, Route } from "react-router-dom";
 import Home from "../pages/Home";
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
+import ForgotPassword from "../pages/auth/ForgotPassword";
+import VerifyOtp from "../pages/auth/VerifyOtp";
+import ResetPassword from "../pages/auth/ResetPassword";
 
 import ProtectedRoute from "../components/ProtectedRoute";
 import DashboardLayout from "../layouts/DashboardLayout";
 
+/* ================= COURSES ================= */
+import JavaCoursePage from "../pages/courses/JavaCoursePage";
+import AboutUs from "../pages/AboutUs";
+
 /* ================= SUPER ADMIN ================= */
 import SuperAdminDashboard from "../pages/superadmin/SuperAdminDashboard";
 import CreateAdmin from "../pages/superadmin/CreateAdmin";
+import FinanceManagement from "../pages/superadmin/FinanceManagement";
+import MessagingHub from "../pages/superadmin/MessagingHub";
+import SuperAdminProfile from "../pages/superadmin/SuperAdminProfile";
+import UserManagement from "../pages/superadmin/UserManagement";
+import CreateUser from "../pages/superadmin/CreateUser";
+import PerformanceDashboard from "../pages/superadmin/PerformanceDashboard";
 
 /* ================= STUDENT ================= */
 import StudentDashboard from "../pages/student/StudentDashboard";
@@ -59,8 +72,13 @@ export default function AppRoutes() {
       {/* ================= PUBLIC ROUTES ================= */}
       <Route path="/" element={<Home />} />
       <Route path="/home" element={<Home />} />
+      <Route path="/java-training-bangalore" element={<JavaCoursePage />} />
+      <Route path="/about-us" element={<AboutUs />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* ================= STUDENT ================= */}
       <Route
@@ -129,13 +147,20 @@ export default function AppRoutes() {
       <Route
         path="/superadmin/*"
         element={
-          <ProtectedRoute allowedRoles={["SUPER_ADMIN"]}>
+          <ProtectedRoute allowedRoles={["SUPERADMIN"]}>
             <DashboardLayout />
           </ProtectedRoute>
         }
       >
         <Route path="dashboard" element={<SuperAdminDashboard />} />
         <Route path="create-admin" element={<CreateAdmin />} />
+        <Route path="finance" element={<FinanceManagement />} />
+        <Route path="messages" element={<MessagingHub />} />
+          <Route path="profile" element={<SuperAdminProfile />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="create-user" element={<CreateUser />} />
+          <Route path="performance" element={<PerformanceDashboard />} />
+          <Route path="meetings" element={<MessagingHub />} /> {/* Combined for now */}
       </Route>
 
       {/* ================= ADMIN ================= */}

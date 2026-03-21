@@ -292,7 +292,7 @@ function ManageStudents() {
                   >
                     <option value="">— Choose Student —</option>
                     {students.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
+                      <option key={s.id} value={s.id}>{s.name} ({s.studentId || s.email})</option>
                     ))}
                   </select>
                   <span className="ms-select-arrow">▾</span>
@@ -361,7 +361,7 @@ function ManageStudents() {
                   >
                     <option value="">— Choose Student —</option>
                     {students.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
+                      <option key={s.id} value={s.id}>{s.name} ({s.studentId || s.email})</option>
                     ))}
                   </select>
                   <span className="ms-select-arrow">▾</span>
@@ -511,7 +511,7 @@ function ManageStudents() {
                         </div>
                         <div className="ms-card__identity">
                           <h4 className="ms-card__name">{item.studentName}</h4>
-                          <span className="ms-card__email">{item.studentEmail}</span>
+                          <span className="ms-card__email">{item.formattedId || item.studentEmail}</span>
                         </div>
                         <span className={`ms-status-badge ms-status-badge--${statusLower}`}>
                           {statusLower === "ongoing" || statusLower === "active"

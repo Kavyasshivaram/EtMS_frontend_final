@@ -21,7 +21,7 @@ function ProtectedRoute({ children, allowedRoles }) {
   if (!normalizedRoles.includes(userRole)) {
 
     switch (userRole) {
-      case "SUPER_ADMIN":
+      case "SUPERADMIN":
         return <Navigate to="/superadmin/dashboard" replace />;
       case "ADMIN":
         return <Navigate to="/admin/dashboard" replace />;

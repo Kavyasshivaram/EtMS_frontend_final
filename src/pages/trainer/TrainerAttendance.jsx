@@ -53,8 +53,9 @@ function TrainerAttendance() {
       if (res.data && res.data.length > 0) {
         const uniqueStudents = Array.from(new Map(res.data.map(s => [s.studentId, s])).values());
         setStudents(uniqueStudents.map(item => ({
-          id: item.studentId, name: item.studentName || "Student",
+          id: item.studentId || item.id, name: item.studentName || "Student",
           email: item.studentEmail || item.email || "N/A",
+          studentId: item.formattedId || item.studentId,
           status: item.status, attendanceId: item.id
         })));
         setTopicTaught(res.data[0].topic || "");
@@ -65,7 +66,7 @@ function TrainerAttendance() {
         const studentRes = await api.get(`/teacher/batches/${selectedBatch}/students`);
         const uniqueStudents = Array.from(new Map(studentRes.data.map(s => [s.id, s])).values());
         setStudents(uniqueStudents.map(s => ({
-          ...s, email: s.email || "N/A", status: "PRESENT", attendanceId: null
+          ...s, email: s.email || "N/A", studentId: s.studentId, status: "PRESENT", attendanceId: null
         })));
       }
     } catch (err) { console.error(err); }
@@ -421,14 +422,16 @@ function TrainerAttendance() {
                   {viewMode === "MARK" ? (
                     <>
                       <th className="ta-th ta-th--num">#</th>
-                      <th className="ta-th">Student</th>
+                      <th className="ta-th">Student ID</th>
+                      <th className="ta-th">Student Name</th>
                       <th className="ta-th">Email</th>
                       <th className="ta-th ta-th--center">Status</th>
                     </>
                   ) : (
                     <>
                       <th className="ta-th">Date</th>
-                      <th className="ta-th">Student</th>
+                      <th className="ta-th">Student ID</th>
+                      <th className="ta-th">Student Name</th>
                       <th className="ta-th">Topic</th>
                       <th className="ta-th ta-th--center">Status</th>
                     </>
@@ -466,6 +469,9 @@ function TrainerAttendance() {
                             <td className="ta-td ta-td--num">
                               <span className="ta-row-num">{rowNum}</span>
                             </td>
+                            <td className="ta-td ta-td--id">
+                              <span className="ta-student-id">{item.studentId || "—"}</span>
+                            </td>
                             <td className="ta-td">
                               <div className="ta-student">
                                 <div
@@ -474,9 +480,7 @@ function TrainerAttendance() {
                                 >
                                   {item.name.charAt(0).toUpperCase()}
                                 </div>
-                                <div>
-                                  <div className="ta-student__name">{item.name}</div>
-                                </div>
+                                <div className="ta-student__name">{item.name}</div>
                               </div>
                             </td>
                             <td className="ta-td">
@@ -517,6 +521,9 @@ function TrainerAttendance() {
                         ) : (
                           <>
                             <td className="ta-td ta-td--date">{item.attendanceDate}</td>
+                            <td className="ta-td ta-td--id">
+                              <span className="ta-student-id">{item.formattedId || item.studentId || "—"}</span>
+                            </td>
                             <td className="ta-td">
                               <div className="ta-student">
                                 <div

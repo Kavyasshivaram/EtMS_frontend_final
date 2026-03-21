@@ -213,6 +213,9 @@ function TrainerDashboard() {
           <div className="td-hero__left">
             <div className="td-greeting-chip">{greeting} 👋</div>
             <h1 className="td-hero__name">{trainerName}</h1>
+            {(user?.portalId || user?.studentId) && (
+              <div className="td-hero__id-badge">System ID: {user.portalId || user.studentId}</div>
+            )}
             <p className="td-hero__role">Trainer · EtMS Smart Learning</p>
           </div>
 

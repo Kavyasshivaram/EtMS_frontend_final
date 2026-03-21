@@ -66,7 +66,7 @@
 }
 
 .adm-hero__inner {
-  max-width: 1440px; margin: 0 auto;
+  max-width: 1700px; margin: 0 auto;
   padding: 3rem 2.5rem 1.5rem;
   display: flex; align-items: flex-start;
   justify-content: space-between; gap: 1.5rem;
@@ -86,6 +86,14 @@
   letter-spacing: -.04em; line-height: 1.15; margin-bottom: 6px;
 }
 .adm-hero__role { font-size: .9rem; color: #64748b; font-weight: 500; }
+.adm-hero__id-badge {
+  display: inline-flex; align-items: center;
+  font-size: 0.72rem; font-weight: 800; color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1); padding: 2px 10px;
+  border-radius: 6px; border: 1px solid rgba(96, 165, 250, 0.2);
+  letter-spacing: 0.02em; margin-bottom: 8px;
+  text-transform: uppercase;
+}
 
 .adm-hero__right { display: flex; align-items: center; gap: 1rem; }
 
@@ -206,7 +214,7 @@
 
 /* Stat pills */
 .adm-hero__stats {
-  max-width: 1440px; margin: 0 auto;
+  max-width: 1700px; margin: 0 auto;
   padding: 0 2.5rem 2rem;
   display: flex; gap: 1rem; flex-wrap: wrap;
   position: relative; z-index: 2;

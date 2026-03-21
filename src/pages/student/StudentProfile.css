@@ -106,7 +106,14 @@
   font-size: 1.85rem; font-weight: 900; color: #fff;
   letter-spacing: -0.04em; line-height: 1.15; margin-bottom: 4px;
 }
-.sp-hero__email { font-size: 0.88rem; color: #94a3b8; font-weight: 500; margin-bottom: 12px; }
+.sp-hero__ids { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.sp-hero__email { font-size: 0.88rem; color: #94a3b8; font-weight: 500; margin-bottom: 0; }
+.sp-hero__student-id {
+  font-size: 0.75rem; font-weight: 800; color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1); padding: 2px 10px;
+  border-radius: 6px; border: 1px solid rgba(96, 165, 250, 0.2);
+  letter-spacing: 0.02em;
+}
 
 .sp-hero__meta { display: flex; flex-wrap: wrap; gap: 6px; }
 .sp-chip {

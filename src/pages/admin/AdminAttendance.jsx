@@ -14,7 +14,7 @@ const generatePDF = (records, batchName = "Batch") => {
     <tr class="${i % 2 === 0 ? "even" : ""}">
       <td>${i + 1}</td>
       <td>${r.studentName || ""}</td>
-      <td>${r.studentEmail || ""}</td>
+      <td>${r.formattedId || r.studentEmail || ""}</td>
       <td>${r.date || ""}</td>
       <td>${r.topic || "—"}</td>
       <td><span class="badge ${(r.status || "").toLowerCase()}">${r.status || ""}</span></td>
@@ -70,8 +70,8 @@ const generatePDF = (records, batchName = "Batch") => {
 
 /* ── CSV export ── */
 const exportCSV = (records) => {
-  const header = ["#", "Name", "Email", "Date", "Topic", "Status"];
-  const rows   = records.map((r, i) => [i+1, r.studentName, r.studentEmail, r.date, r.topic||"", r.status]);
+  const header = ["#", "Name", "Student ID / Email", "Date", "Topic", "Status"];
+  const rows   = records.map((r, i) => [i+1, r.studentName, r.formattedId || r.studentEmail, r.date, r.topic||"", r.status]);
   const csv    = [header, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
   const blob   = new Blob([csv], { type: "text/csv" });
   const url    = URL.createObjectURL(blob);
@@ -381,9 +381,10 @@ function AdminAttendance() {
                               style={{background:scheme.bg, color:scheme.color}}>
                               {(r.studentName||"?").charAt(0).toUpperCase()}
                             </div>
-                            <span className="aa-name">{r.studentName}</span>
-                          </div>
-                        </td>
+                             <span className="aa-name">{r.studentName}</span>
+                             <span className="aa-id-sub" style={{fontSize: '10px', color: '#64748b', display: 'block'}}>{r.formattedId}</span>
+                           </div>
+                         </td>
 
                         <td className="aa-td">
                           <a href={`mailto:${r.studentEmail}`} className="aa-email">

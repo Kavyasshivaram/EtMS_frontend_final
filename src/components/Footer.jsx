@@ -17,7 +17,9 @@ const Footer = () => {
           
           {/* Brand & Mission */}
           <div className="footer-col brand-col">
-            <h2 className="footer-logo">🚀 EtMS</h2>
+            <div className="footer-logo-wrap">
+              <img src="appteknow_logo.png" alt="AppTechno Careers" className="footer-logo-img" />
+            </div>
             <p className="brand-desc">
               The world's most advanced Smart Learning Management System. 
               We bridge the gap between academic learning and industry 

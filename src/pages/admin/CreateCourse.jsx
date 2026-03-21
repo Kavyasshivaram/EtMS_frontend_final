@@ -52,7 +52,7 @@ function CreateCourse() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(""); setMessage("");
-    if (!courseName || !duration || description.length < 10)
+    if (!courseName || !duration || (description?.length || 0) < 10)
       return setError("Please fill all fields correctly (Description min 10 chars).");
     try {
       setLoading(true);
@@ -77,8 +77,10 @@ function CreateCourse() {
   };
 
   const handleEdit = (course) => {
-    setEditingId(course.id); setCourseName(course.courseName);
-    setDuration(course.duration); setDescription(course.description);
+    setEditingId(course.id);
+    setCourseName(course.courseName || "");
+    setDuration(course.duration || "");
+    setDescription(course.description || "");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -109,7 +111,8 @@ function CreateCourse() {
   );
 
   /* duration icon helper */
-  const durIcon = (d = "") => {
+  const durIcon = (d) => {
+    if (!d || typeof d !== "string") return "🏆";
     if (d.includes("Month") && parseInt(d) <= 1) return "🗓️";
     if (d.includes("Month")) return "📆";
     return "🏆";
@@ -227,26 +230,26 @@ function CreateCourse() {
               <label className="cc-label">
                 <span className="cc-label__icon">📄</span>
                 Description
-                <span className="cc-label__count">{description.length}/500</span>
+                <span className="cc-label__count">{(description || "").length}/500</span>
               </label>
               <textarea
                 className="cc-textarea"
                 rows="5"
                 maxLength="500"
-                value={description}
+                value={description || ""}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Describe the course content, outcomes and prerequisites..."
               />
               <div className="cc-char-bar">
                 <div
                   className="cc-char-bar__fill"
-                  style={{ width: `${(description.length / 500) * 100}%`,
-                    background: description.length < 10 ? "#ef4444"
-                               : description.length > 450 ? "#f59e0b" : "#16a34a"
+                  style={{ width: `${((description || "").length / 500) * 100}%`,
+                    background: (description || "").length < 10 ? "#ef4444"
+                               : (description || "").length > 450 ? "#f59e0b" : "#16a34a"
                   }}
                 />
               </div>
-              {description.length < 10 && description.length > 0 && (
+              {(description || "").length < 10 && (description || "").length > 0 && (
                 <span className="cc-hint cc-hint--warn">Minimum 10 characters required</span>
               )}
             </div>

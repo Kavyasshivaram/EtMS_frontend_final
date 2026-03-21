@@ -14,12 +14,13 @@
 }
 
 .footer-container {
-  max-width: 1350px;
+  max-width: 1300px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
   gap: 50px;
-  padding: 0 25px;
+  padding: 0 40px;
+  width: 100%;
 }
 
 /* Brand Section */
@@ -29,6 +30,23 @@
   line-height: 1.8; 
   color: #cbd5e0; /* Soft Blue-Gray */
   margin-bottom: 25px;
+}
+
+.footer-logo-wrap {
+  background: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 25px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.footer-logo-img {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
 }
 
 /* App Store Buttons */
@@ -175,6 +193,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 0 10px;
 }
 
 .bottom-links { display: flex; gap: 20px; }

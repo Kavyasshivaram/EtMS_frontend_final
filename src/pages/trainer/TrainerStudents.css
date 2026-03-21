@@ -110,6 +110,8 @@ td {
 }
 
 .font-bold { font-weight: 600; }
+.font-mono { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.85rem; }
+.text-blue-600 { color: #2563eb; }
 .email-text { font-size: 0.9rem; }
 .phone-text { font-size: 0.8rem; color: var(--text-muted); }
 

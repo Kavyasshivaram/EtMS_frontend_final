@@ -83,6 +83,7 @@ function TrainerStudents() {
         <table>
           <thead>
             <tr>
+              <th>Student ID</th>
               <th>Name</th>
               <th>Contact Info</th>
               <th>Course</th>
@@ -92,6 +93,7 @@ function TrainerStudents() {
           <tbody>
             {displayedStudents.map(student => (
               <tr key={student.id}>
+                <td className="font-mono text-blue-600 font-bold">{student.studentId || "—"}</td>
                 <td className="font-bold">{student.name}</td>
                 <td>
                   <div className="email-text">{student.email}</div>
