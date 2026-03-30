@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../../api/axiosConfig";
 import "./CreateUser.css";
 import {
@@ -37,6 +37,20 @@ const ROLES = [
     icon: "📣",
     color: "orange",
   },
+  {
+    value: "COUNSELOR",
+    label: "Counselor",
+    desc: "Student well-being",
+    icon: "❤️",
+    color: "pink",
+  },
+  {
+    value: "SUPERADMIN",
+    label: "Super Admin",
+    desc: "Global platform access",
+    icon: "🔐",
+    color: "amber",
+  },
 ];
 
 export default function CreateUser() {
@@ -47,14 +61,37 @@ export default function CreateUser() {
     phone: "",
     roleName: "STUDENT",
     studentId: "",
+    courseId: "",
   });
+  const [courses, setCourses]   = useState([]);
   const [loading, setLoading]     = useState(false);
   const [message, setMessage]     = useState({ type: "", text: "" });
   const [showPass, setShowPass]   = useState(false);
   const [touched, setTouched]     = useState({});
 
+  useEffect(() => {
+    fetchCourses();
+    handleRoleSelect("STUDENT");
+  }, []);
+
+  const fetchCourses = async () => {
+    try {
+      const res = await api.get("/admin/courses");
+      setCourses(res.data || []);
+    } catch (err) { console.error("Failed to fetch courses", err); }
+  };
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    
+    // Strict numeric-only and 10-digit limit for phone
+    if (name === "phone") {
+      const numericValue = value.replace(/\D/g, "").slice(0, 10);
+      setFormData({ ...formData, phone: numericValue });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+    
     setMessage({ type: "", text: "" });
   };
 
@@ -62,17 +99,28 @@ export default function CreateUser() {
     setTouched({ ...touched, [e.target.name]: true });
   };
 
-  const handleRoleSelect = async (role) => {
-    setFormData({ ...formData, roleName: role, studentId: "" });
-    if (role === "STUDENT") {
-      try {
-        const res = await api.get("/superadmin/users/get-next-id");
-        if (res.data?.nextId) {
-          setFormData(prev => ({ ...prev, roleName: role, studentId: res.data.nextId }));
-        }
-      } catch (err) {
-        console.error("Failed to fetch next student ID:", err);
+  const handleRoleSelect = async (role, cId = "") => {
+    const cidToUse = cId || formData.courseId;
+    setFormData(prev => ({ ...prev, roleName: role, studentId: "" }));
+    try {
+      let url = `/superadmin/users/get-next-id?role=${role}`;
+      if (role === "STUDENT" && cidToUse) {
+        url += `&courseId=${cidToUse}`;
       }
+      const res = await api.get(url);
+      if (res.data?.nextId) {
+        setFormData(prev => ({ ...prev, roleName: role, studentId: res.data.nextId }));
+      }
+    } catch (err) {
+      console.error(`Failed to fetch next ${role} ID:`, err);
+    }
+  };
+
+  const handleCourseChange = (e) => {
+    const cid = e.target.value;
+    setFormData(prev => ({ ...prev, courseId: cid }));
+    if (formData.roleName === "STUDENT") {
+      handleRoleSelect("STUDENT", cid);
     }
   };
 
@@ -104,6 +152,7 @@ export default function CreateUser() {
   const errors = {
     name:     touched.name     && !formData.name.trim()   ? "Name is required" : "",
     email:    touched.email    && !/\S+@\S+\.\S+/.test(formData.email) ? "Valid email required" : "",
+    phone:    touched.phone    && !/^\d{10}$/.test(formData.phone) ? "Exactly 10 digits required" : "",
     password: touched.password && formData.password.length < 8 ? "Min 8 characters" : "",
   };
 
@@ -132,9 +181,9 @@ export default function CreateUser() {
           </div>
 
           {/* Stats */}
-          <div className="cu-side-stats">
+            <div className="cu-side-stats">
             <div className="cu-ss-item">
-              <span className="cu-ss-val">4</span>
+              <span className="cu-ss-val">5</span>
               <span className="cu-ss-lbl">Role Types</span>
             </div>
             <div className="cu-ss-divider" />
@@ -197,6 +246,33 @@ export default function CreateUser() {
               ))}
             </div>
 
+            {/* Course Selector for Students - context for ID generation */}
+            {formData.roleName === "STUDENT" && (
+              <div className="cu-field" style={{marginBottom: '2rem'}}>
+                <label className="cu-label" style={{fontWeight: '600'}}>Assigned Course (ID Prefix Context)</label>
+                <div className="cu-select-wrap">
+                  <select 
+                    name="courseId" 
+                    value={formData.courseId} 
+                    onChange={handleCourseChange}
+                    className="cu-input"
+                    style={{
+                      width: '100%', 
+                      padding: '0.8rem 1rem', 
+                      borderRadius: '12px', 
+                      border: '2px solid #e2e8f0',
+                      backgroundColor: '#f8fafc'
+                    }}
+                  >
+                    <option value="">-- No Course (STU prefix) --</option>
+                    {courses.map(c => (
+                      <option key={c.id} value={c.id}>{c.courseName} ({c.shortcut || 'No Shortcut'})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
             {/* Full Name */}
             <div className="cu-section-label">Account Details</div>
             <div className="cu-field-row two">
@@ -245,25 +321,23 @@ export default function CreateUser() {
 
             </div>
 
-            {formData.roleName === "STUDENT" && (
-              <div className="cu-field">
-                <label className="cu-label">
-                  <FaIdCard className="cu-label-icon" /> Student ID
-                  <span className="cu-optional">Automatic if empty</span>
-                </label>
-                <div className="cu-input-wrap">
-                  <input
-                    name="studentId"
-                    type="text"
-                    placeholder="e.g. ETMS-ST-2024-0001"
-                    value={formData.studentId}
-                    onChange={handleChange}
-                    autoComplete="off"
-                  />
-                </div>
-                <p className="cu-field-note">Leave empty to auto-generate based on current year and sequence.</p>
+            <div className="cu-field">
+              <label className="cu-label">
+                <FaIdCard className="cu-label-icon" /> {formData.roleName === "STUDENT" ? "Student ID" : "Portal / System ID"}
+                <span className="cu-optional">Automatic if empty</span>
+              </label>
+              <div className="cu-input-wrap">
+                <input
+                  name="studentId"
+                  type="text"
+                  placeholder={formData.roleName === "STUDENT" ? "e.g. ETMS-ST-2024-0001" : "e.g. ADM-2024-0001"}
+                  value={formData.studentId}
+                  onChange={handleChange}
+                  autoComplete="off"
+                />
               </div>
-            )}
+              <p className="cu-field-note">Leave empty to auto-generate based on configuration.</p>
+            </div>
 
             <div className="cu-field-row two">
 
@@ -304,7 +378,7 @@ export default function CreateUser() {
               <div className="cu-field">
                 <label className="cu-label">
                   <FaPhone className="cu-label-icon" /> Phone Number
-                  <span className="cu-optional">Optional</span>
+                  <span className="cu-required" style={{color: '#ef4444', marginLeft: '4px'}}>* Mandatory</span>
                 </label>
                 <div className="cu-input-wrap">
                   <input
@@ -313,9 +387,13 @@ export default function CreateUser() {
                     placeholder="+91 98765 43210"
                     value={formData.phone}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    required
                     autoComplete="off"
                   />
+                  {touched.phone && !errors.phone && formData.phone && <span className="cu-valid-ic">✓</span>}
                 </div>
+                {errors.phone && <span className="cu-error-msg">{errors.phone}</span>}
               </div>
 
             </div>

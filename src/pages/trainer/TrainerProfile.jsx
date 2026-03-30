@@ -43,7 +43,15 @@ function TrainerProfile() {
     return Math.round(fields.filter(f => f?.toString().trim()).length / fields.length * 100);
   })();
 
-  const handleChange = e => setTrainer({ ...trainer, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    if (name === "phone") {
+      const numericValue = value.replace(/\D/g, "").slice(0, 10);
+      setTrainer({ ...trainer, phone: numericValue });
+    } else {
+      setTrainer({ ...trainer, [name]: value });
+    }
+  };
 
   const handleImageChange = e => {
     const file = e.target.files[0];

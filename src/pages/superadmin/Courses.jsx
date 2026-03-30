@@ -46,7 +46,7 @@ function Courses() {
                 </div>
 
                 <div className="sl-table-card">
-                    <table className="sl-table">
+                    <table className="sl-table responsive-card-table">
                         <thead>
                             <tr>
                                 <th>Module ID</th>
@@ -59,11 +59,11 @@ function Courses() {
                         <tbody>
                             {courses.map((course) => (
                                 <tr key={course.id}>
-                                    <td>#CR-{course.id}</td>
-                                    <td style={{fontWeight: 700}}>{course.name}</td>
-                                    <td>{course.trainer}</td>
-                                    <td>{course.students} Units</td>
-                                    <td>
+                                    <td data-label="Module ID">#CR-{course.id}</td>
+                                    <td style={{fontWeight: 700}} data-label="Course Title">{course.name}</td>
+                                    <td data-label="Academic Lead">{course.trainer}</td>
+                                    <td data-label="Unit Count">{course.students} Units</td>
+                                    <td data-label="Operation Status">
                                         <span className={`sl-status-pill ${course.status === 'ACTIVE' ? 'sl-status-pill--active' : 'sl-status-pill--low'}`}>
                                             {course.status}
                                         </span>

@@ -91,6 +91,8 @@ export default function SuperAdminDashboard() {
     </div>
   );
 
+  const totalUsers = (dashboard.totalStudents || 0) + (dashboard.totalTrainers || 0) + (dashboard.totalAdmins || 0);
+
   const statCards = [
     {
       icon: "₹",  label: "Revenue (MTD)",
@@ -101,20 +103,20 @@ export default function SuperAdminDashboard() {
     {
       icon: "📈", label: "Net Profit",
       value: `₹${dashboard.netProfit?.toLocaleString() || "0"}`,
-      trend: "+8.2%", up: true, ring: 58,
+      trend: "+8.2%", up: true, ring: 65,
       ringColor: "#16a34a", iconBg: "#dcfce7", iconColor: "#16a34a",
     },
     {
-      icon: "👥", label: "Platform Users",
-      value: ((dashboard.totalStudents || 0) + (dashboard.totalTrainers || 0) + (dashboard.totalAdmins || 0)).toLocaleString(),
-      trend: "+45 this month", up: true, ring: 45,
+      icon: "👥", label: "Registry Growth",
+      value: totalUsers.toLocaleString(),
+      trend: `+${dashboard.activeStudents || 0} active students`, up: true, ring: Math.min(100, (dashboard.activeStudents || 0) / (dashboard.totalStudents || 1) * 100),
       ringColor: "#f97316", iconBg: "#fff7ed", iconColor: "#f97316",
     },
     {
-      icon: "💸", label: "Total Expenses",
-      value: `₹${dashboard.totalExpenses?.toLocaleString() || "0"}`,
-      trend: "+2.4%", up: false, ring: 30,
-      ringColor: "#ef4444", iconBg: "#fef2f2", iconColor: "#ef4444",
+      icon: "✅", label: "Placement Rate",
+      value: `${dashboard.placementRate || "0"}%`,
+      trend: "Above target", up: true, ring: dashboard.placementRate || 0,
+      ringColor: "#7c3aed", iconBg: "#f5f3ff", iconColor: "#7c3aed",
     },
   ];
 
@@ -168,8 +170,17 @@ export default function SuperAdminDashboard() {
               <p className="sa-hero-desc">Here's what's happening across your platform today.</p>
               <div className="sa-hero-chips">
                 <span className="sa-chip blue">🟢 {dashboard.totalStudents || 0} Students</span>
-                <span className="sa-chip gold">⚡ {dashboard.totalBatches || 0} Active Batches</span>
+                <span className="sa-chip gold">⚡ {dashboard.activeBatches || 0} Active Batches</span>
                 <span className="sa-chip green">📚 {dashboard.totalCourses || 0} Courses</span>
+                {dashboard.pendingApprovals > 0 && (
+                  <span 
+                    className="sa-chip red" 
+                    onClick={() => navigate("/superadmin/users?status=PENDING")} 
+                    style={{cursor: 'pointer'}}
+                  >
+                    🔔 {dashboard.pendingApprovals} Pending Approvals
+                  </span>
+                )}
               </div>
             </div>
             <div className="sa-hero-right">
@@ -245,7 +256,7 @@ export default function SuperAdminDashboard() {
                 <OvTile icon="👨‍🏫" value={dashboard.totalTrainers || 0} label="Trainers" color="green" />
                 <OvTile icon="👩‍💻" value={dashboard.totalStudents || 0} label="Students" color="orange" />
                 <OvTile icon="🏫" value={dashboard.totalAdmins   || 0} label="Admins"   color="purple" />
-                <OvTile icon="✅" value={dashboard.activeCourses || 0} label="Active"   color="blue" />
+                <OvTile icon="✅" value={dashboard.activeBatches || 0} label="Active"   color="blue" />
               </div>
               <button className="sa-link-btn" onClick={() => navigate("/superadmin/analytics")}>
                 View Full Analytics →
@@ -301,7 +312,7 @@ export default function SuperAdminDashboard() {
                 <QABtn icon="📅" label="Schedule"   color="gold"   onClick={() => navigate("/superadmin/meetings")} />
                 <QABtn icon="📩" label="Messages"   color="purple" onClick={() => navigate("/superadmin/messages")} />
                 <QABtn icon="📊" label="Analytics"  color="orange" onClick={() => navigate("/superadmin/analytics")} />
-                <QABtn icon="🎓" label="Courses"    color="blue"   onClick={() => navigate("/superadmin/courses")} />
+                <QABtn icon="📅" label="Leave Mgt"  color="blue"   onClick={() => navigate("/superadmin/leave")} />
               </div>
             </div>
 

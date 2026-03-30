@@ -186,4 +186,14 @@
 @media (max-width: 900px) {
   .sa-wrapper { grid-template-columns: 1fr; }
   .sa-side-panel { display: none; }
+  .sl-main-panel { padding: 1.5rem; }
+  .sl-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .sl-search-box { width: 100%; }
+  .sl-btn-primary { width: 100%; justify-content: center; }
+}
+
+@media (max-width: 480px) {
+  .sl-main-panel { padding: 1rem; }
+  .sl-stats-grid { grid-template-columns: 1fr; }
+  .sl-table td { padding: 1rem; }
 }

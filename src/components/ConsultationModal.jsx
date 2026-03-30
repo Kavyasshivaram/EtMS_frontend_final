@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaTimes, FaCheckCircle, FaPaperPlane } from 'react-icons/fa';
-import axios from 'axios';
+import api from '../api/axiosConfig';
 import './ConsultationModal.css';
 
 const ConsultationModal = ({ isOpen, onClose, courseTitle }) => {
@@ -36,7 +36,7 @@ const ConsultationModal = ({ isOpen, onClose, courseTitle }) => {
         e.preventDefault();
         setStatus('submitting');
         try {
-            await axios.post('http://localhost:8080/api/consultations/book', {
+            await api.post('/consultations/book', {
                 ...formData,
                 course: courseTitle
             });

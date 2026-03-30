@@ -43,7 +43,15 @@ function StudentProfile() {
     return Math.round(fields.filter(f => f?.toString().trim()).length / fields.length * 100);
   })();
 
-  const handleChange = e => setStudent({ ...student, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    if (name === "phone") {
+      const numericValue = value.replace(/\D/g, "").slice(0, 10);
+      setStudent({ ...student, phone: numericValue });
+    } else {
+      setStudent({ ...student, [name]: value });
+    }
+  };
 
   const handleImageChange = e => {
     const file = e.target.files[0];

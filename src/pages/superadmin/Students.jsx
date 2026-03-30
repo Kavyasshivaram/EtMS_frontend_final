@@ -77,7 +77,7 @@ function Students() {
                 </div>
 
                 <div className="sl-table-card">
-                    <table className="sl-table">
+                    <table className="sl-table responsive-card-table">
                         <thead>
                             <tr>
                                 <th>Student ID</th>
@@ -94,15 +94,15 @@ function Students() {
                                 <tr><td colSpan="5" style={{textAlign: 'center', padding: '3rem'}}>No learners found.</td></tr>
                             ) : filteredStudents.map((s) => (
                                 <tr key={s.id}>
-                                    <td className="sl-td-id" style={{fontFamily: 'JetBrains Mono', fontWeight: 700}}>{s.portalId || s.studentId || `ID-${s.id}`}</td>
-                                    <td style={{fontWeight: 700}}>{s.name}</td>
-                                    <td>{s.courseName || "General"}</td>
-                                    <td>
+                                    <td className="sl-td-id" data-label="Student ID">{s.studentId || `ID-${s.id}`}</td>
+                                    <td style={{fontWeight: 700}} data-label="Student Name">{s.name}</td>
+                                    <td data-label="Subject Stream">{s.courseName || "General"}</td>
+                                    <td data-label="Current Status">
                                         <span className={`sl-status-pill ${s.status === 'ACTIVE' || s.enabled ? 'sl-status-pill--active' : 'sl-status-pill--warn'}`}>
                                             {s.enabled ? 'ACTIVE' : 'INACTIVE'}
                                         </span>
                                     </td>
-                                    <td>
+                                    <td data-label="Operations">
                                         <div style={{display: 'flex', gap: '0.75rem'}}>
                                             <button className="sl-btn-icon" title="View Dossier"><FaEye /></button>
                                             <button className="sl-btn-icon" style={{color: 'var(--sa-red)'}} title="Revoke Access"><FaUserMinus /></button>

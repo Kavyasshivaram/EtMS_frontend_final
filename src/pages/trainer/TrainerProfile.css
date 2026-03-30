@@ -299,10 +299,45 @@
 
 @media (max-width: 600px) {
   .tp-body { padding: 1.5rem 1rem 3rem; }
-  .tp-hero__inner { padding: 0 1rem; }
-  .tp-hero__name { font-size: 1.4rem; }
+  .tp-hero { padding: 2rem 0; }
+  .tp-hero__inner { 
+    padding: 0 1.25rem; 
+    flex-direction: column; 
+    align-items: center; 
+    text-align: center;
+    gap: 1.5rem;
+  }
+  .tp-hero__avatar-wrap { margin-bottom: 0.5rem; }
+  .tp-hero__info { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    width: 100%;
+  }
+  .tp-hero__name { 
+    font-size: 1.5rem; 
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  .tp-hero__ids { 
+    flex-direction: column; 
+    gap: 6px; 
+    margin-bottom: 15px; 
+  }
+  .tp-hero__email { 
+    word-break: break-all; 
+    font-size: 0.82rem; 
+  }
+  .tp-hero__meta { justify-content: center; }
   .tp-grid--2, .tp-grid--3 { grid-template-columns: 1fr; }
   .tp-action-bar { flex-direction: column; align-items: flex-start; }
   .tp-action-bar__right { width: 100%; }
   .tp-btn { flex: 1; justify-content: center; }
+}
+
+@media (max-width: 400px) {
+  .tp-hero__name { font-size: 1.35rem; }
+  .tp-hero__inner { padding: 0 1rem; }
+  .tp-card__header { padding: 1rem; }
+  .tp-card__body { padding: 1.25rem 1rem; }
 }

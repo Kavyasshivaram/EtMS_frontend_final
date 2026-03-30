@@ -46,7 +46,7 @@ function Marketers() {
                 </div>
 
                 <div className="sl-table-card">
-                    <table className="sl-table">
+                    <table className="sl-table responsive-card-table">
                         <thead>
                             <tr>
                                 <th>Personnel ID</th>
@@ -58,10 +58,10 @@ function Marketers() {
                         <tbody>
                             {marketers.map((marketer) => (
                                 <tr key={marketer.id}>
-                                    <td>#MK-{marketer.id}</td>
-                                    <td style={{fontWeight: 700}}>{marketer.name}</td>
-                                    <td>{marketer.email}</td>
-                                    <td style={{color: 'var(--sa-green)', fontWeight: 700}}>₹{marketer.revenue.toLocaleString()}</td>
+                                    <td data-label="Personnel ID">#MK-{marketer.id}</td>
+                                    <td style={{fontWeight: 700}} data-label="Full Identity">{marketer.name}</td>
+                                    <td data-label="Secure Email">{marketer.email}</td>
+                                    <td style={{color: 'var(--sa-green)', fontWeight: 700}} data-label="Revenue Yield">₹{marketer.revenue.toLocaleString()}</td>
                                 </tr>
                             ))}
                         </tbody>

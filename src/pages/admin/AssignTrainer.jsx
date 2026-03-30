@@ -15,6 +15,7 @@ const AVATAR_COLORS = [
 
 function AssignTrainer() {
   const [trainers,        setTrainers]        = useState([]);
+  const [batches,         setBatches]         = useState([]);
   const [search,          setSearch]          = useState("");
   const [showPasswordId,  setShowPasswordId]  = useState(null);
   const [editId,          setEditId]          = useState(null);
@@ -40,11 +41,15 @@ function AssignTrainer() {
 
   const fetchTrainers = async () => {
     try {
-      const res = await api.get("/admin/all-trainers");
-      setTrainers(res.data);
+      const [tRes, bRes] = await Promise.all([
+        api.get("/admin/all-trainers"),
+        api.get("/admin/batches")
+      ]);
+      setTrainers(tRes.data);
+      setBatches(bRes.data);
     } catch (err) {
-      console.error("Error fetching trainers", err);
-      setError("Failed to load trainers list.");
+      console.error("Error fetching data", err);
+      setError("Failed to load trainers or batches.");
     }
   };
 
@@ -502,7 +507,7 @@ function AssignTrainer() {
                           <span className="at-detail-row__icon">🔒</span>
                           <div className="at-password-row">
                             <span className="at-password-row__val">
-                              {showPasswordId === t.id ? t.password : "••••••••••"}
+                              {showPasswordId === t.id ? (t.plainPassword || 'Hidden') : "••••••••••"}
                             </span>
                             <button
                               className="at-eye-btn"
@@ -516,6 +521,26 @@ function AssignTrainer() {
                             </button>
                           </div>
                         </div>
+                      </div>
+
+                      {/* Batch History Section */}
+                      <div className="at-batch-history">
+                        <h5 className="at-batch-history__title">📚 Batch History</h5>
+                        {batches.filter(b => b.trainer?.id === t.id).length === 0 ? (
+                          <p className="at-batch-history__empty">No batches assigned yet.</p>
+                        ) : (
+                          <div className="at-batch-history__list">
+                             {batches
+                               .filter(b => b.trainer?.id === t.id)
+                               .map(b => (
+                                 <div key={b.id} className={`at-batch-pill at-batch-pill--${b.status?.toLowerCase()}`}>
+                                   <span className="at-batch-pill__status">{b.status === 'ONGOING' ? '●' : '✓'}</span>
+                                   <span className="at-batch-pill__name">{b.batchName}</span>
+                                 </div>
+                               ))
+                             }
+                          </div>
+                        )}
                       </div>
 
                     </div>

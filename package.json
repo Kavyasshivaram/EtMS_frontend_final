@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://vinni868.github.io/-Etms-frontend/",
+  "homepage": "https://Kavyasshivaram.github.io/EtMS_frontend_final/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -16,6 +16,7 @@
     "axios": "^1.13.5",
     "bootstrap": "^5.3.8",
     "html2canvas": "^1.4.1",
+    "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "react": "^19.2.0",

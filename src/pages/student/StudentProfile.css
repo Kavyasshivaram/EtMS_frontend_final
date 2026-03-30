@@ -301,10 +301,45 @@
 
 @media (max-width: 600px) {
   .sp-body { padding: 1.5rem 1rem 3rem; }
-  .sp-hero__inner { padding: 0 1rem; }
-  .sp-hero__name { font-size: 1.4rem; }
+  .sp-hero { padding: 2rem 0; }
+  .sp-hero__inner { 
+    padding: 0 1.25rem; 
+    flex-direction: column; 
+    align-items: center; 
+    text-align: center;
+    gap: 1.5rem;
+  }
+  .sp-hero__avatar-wrap { margin-bottom: 0.5rem; }
+  .sp-hero__info { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    width: 100%;
+  }
+  .sp-hero__name { 
+    font-size: 1.5rem; 
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  .sp-hero__ids { 
+    flex-direction: column; 
+    gap: 6px; 
+    margin-bottom: 15px; 
+  }
+  .sp-hero__email { 
+    word-break: break-all; 
+    font-size: 0.82rem; 
+  }
+  .sp-hero__meta { justify-content: center; }
   .sp-grid--2, .sp-grid--3 { grid-template-columns: 1fr; }
   .sp-action-bar { flex-direction: column; align-items: flex-start; }
   .sp-action-bar__right { width: 100%; }
   .sp-btn { flex: 1; justify-content: center; }
+}
+
+@media (max-width: 400px) {
+  .sp-hero__name { font-size: 1.35rem; }
+  .sp-hero__inner { padding: 0 1rem; }
+  .sp-card__header { padding: 1rem; }
+  .sp-card__body { padding: 1.25rem 1rem; }
 }

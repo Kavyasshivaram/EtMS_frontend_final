@@ -24,9 +24,13 @@ const AVATAR_COLORS = [
    STUDENTS PANEL MODAL
    Shows all students mapped to a specific batch
    ══════════════════════════════════════════════ */
-function StudentsModal({ batch, onClose }) {
+function StudentsModal({ batch, onClose, onRefresh }) {
   const overlayRef = useRef(null);
-  const students   = batch.studentBatches?.filter(sb => sb.status === "ACTIVE" || !sb.status) || [];
+  
+  // Show ALL students, so admin can activate/deactivate
+  const students   = batch.studentBatches || [];
+
+  const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
     const h = (e) => { if (e.key === "Escape") onClose(); };
@@ -38,13 +42,25 @@ function StudentsModal({ batch, onClose }) {
     };
   }, [onClose]);
 
+  const handleToggle = async (mappingId) => {
+    setTogglingId(mappingId);
+    try {
+      await api.put(`/admin/student-batch-mappings/${mappingId}/toggle-status`);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      alert("Failed to toggle status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   return createPortal(
     <div
       className="cb-modal-overlay"
       ref={overlayRef}
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <div className="cb-modal" role="dialog" aria-modal="true">
+      <div className="cb-modal" role="dialog" aria-modal="true" style={{ maxWidth: "600px" }}>
 
         {/* Header */}
         <div className="cb-modal__header">
@@ -59,7 +75,7 @@ function StudentsModal({ batch, onClose }) {
         </div>
 
         {/* Body */}
-        <div className="cb-modal__body">
+        <div className="cb-modal__body" style={{ maxHeight: "60vh", overflowY: "auto" }}>
           {students.length === 0 ? (
             <div className="cb-modal__empty">
               <FaUserGraduate className="cb-modal__empty-ico" />
@@ -70,31 +86,161 @@ function StudentsModal({ batch, onClose }) {
               {students.map((sb, idx) => {
                 const scheme = AVATAR_COLORS[idx % AVATAR_COLORS.length];
                 const stu    = sb.student;
+                const isActive = sb.status === "ACTIVE" || !sb.status;
+                const isHandling = togglingId === sb.id;
+                
                 return (
-                  <div key={sb.id || idx} className="cb-student-row">
-                    <div
-                      className="cb-student-avatar"
-                      style={{ background: scheme.bg, color: scheme.color }}
-                    >
-                      {stu?.name?.charAt(0).toUpperCase() || "?"}
-                    </div>
-                    <div className="cb-student-info">
-                      <span className="cb-student-name">{stu?.name || "—"}</span>
-                      <span className="cb-student-meta">
-                        <FaEnvelope /> {stu?.email || "—"}
-                      </span>
-                      {stu?.phone && (
+                  <div key={sb.id || idx} className={`cb-student-row ${!isActive ? "cb-student-row--inactive" : ""}`} style={{ opacity: !isActive ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div
+                        className="cb-student-avatar"
+                        style={{ background: scheme.bg, color: scheme.color }}
+                      >
+                        {stu?.name?.charAt(0).toUpperCase() || "?"}
+                      </div>
+                      <div className="cb-student-info">
+                        <span className="cb-student-name">{stu?.name || "—"}</span>
                         <span className="cb-student-meta">
-                          <FaPhoneAlt /> {stu.phone}
+                          <FaEnvelope /> {stu?.email || "—"}
                         </span>
-                      )}
+                      </div>
                     </div>
-                    <span className="cb-student-id">ID #{stu?.id}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <span className={`cb-tag ${isActive ? "cb-tag--ongoing" : "cb-tag--inactive"}`}>
+                        {isActive ? "ACTIVE" : "INACTIVE"}
+                      </span>
+                      <button 
+                        onClick={() => handleToggle(sb.id)}
+                        disabled={isHandling}
+                        style={{ 
+                          padding: '0.4rem 0.8rem', 
+                          borderRadius: '6px', 
+                          border: 'none', 
+                          cursor: isHandling ? 'not-allowed' : 'pointer',
+                          background: isActive ? '#fee2e2' : '#dcfce7',
+                          color: isActive ? '#b91c1c' : '#15803d',
+                          fontWeight: '600',
+                          fontSize: '0.8rem'
+                        }}
+                      >
+                        {isHandling ? "Wait..." : (isActive ? "Deactivate" : "Activate")}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ══════════════════════════════════════════════
+   MAP STUDENT MODAL (BATCH)
+   ══════════════════════════════════════════════ */
+function MapStudentModal({ batchId, onClose, onSaved }) {
+  const [students, setStudents]     = useState([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const overlayRef                  = useRef(null);
+
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const res = await api.get("/admin/students");
+        setStudents(res.data.filter(s => s.status !== "INACTIVE"));
+      } catch (err) {
+        setError("Failed to load students list.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStudents();
+  }, []);
+
+  const handleSave = async () => {
+    setError("");
+    if (!selectedId) { setError("Please select a student."); return; }
+    setSaving(true);
+    try {
+      await api.post(`/admin/enrolments`, {
+        studentId: selectedId,
+        batchId: batchId,
+        courseId: null
+      });
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(typeof err.response?.data?.error === 'string' ? err.response.data.error : (err.response?.data?.message || "Failed to enrol student."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredStudents = students
+    .filter(s => s.status !== "INACTIVE" && (s.portalId || s.studentId))
+    .filter(s => 
+      s.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      s.studentEmail?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+  return createPortal(
+    <div className="cb-modal-overlay" ref={overlayRef} onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
+      <div className="cb-modal" role="dialog" aria-modal="true" style={{ maxWidth: '500px' }}>
+        <div className="cb-modal__header">
+          <div className="cb-modal__header-left">
+            <div className="cb-modal__header-icon" style={{ background: '#dbeafe', color: '#2563eb' }}><FaPlus /></div>
+            <div>
+              <h2 className="cb-modal__title">Enrol Student to Batch</h2>
+              <p className="cb-modal__sub">Assign a student to this training batch</p>
+            </div>
+          </div>
+          <button className="cb-modal__close" onClick={onClose}><FaTimes /></button>
+        </div>
+
+        <div className="cb-modal__body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          {error && <div className="cb-alert cb-alert--error" style={{ marginBottom: "1rem" }}><FaBan /> {error}</div>}
+          
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>Loading students...</div>
+          ) : (
+            <div className="cb-field">
+              <label className="cb-label">Select Student</label>
+              <input 
+                type="text" 
+                className="cb-input" 
+                placeholder="Search by name or email..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)}
+                style={{ marginBottom: '0.5rem' }}
+              />
+              <select className="cb-input" value={selectedId} onChange={(e) => setSelectedId(e.target.value)} size={6} style={{ height: 'auto', padding: '0.25rem' }}>
+                <option value="" disabled>-- Select a student --</option>
+                {filteredStudents.map(s => (
+                  <option key={s.studentId} value={s.studentId}>{s.studentName} ({s.studentEmail})</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', padding: '1rem 1.5rem', borderTop: '1px solid #e5e7eb' }}>
+          <button className="cb-btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="cb-btn-primary" onClick={handleSave} disabled={saving || loading}>
+            {saving ? "Enrolling…" : "Enrol Student"}
+          </button>
         </div>
       </div>
     </div>,
@@ -111,12 +257,14 @@ function CreateBatch() {
   const [startDate,    setStartDate]    = useState("");
   const [endDate,      setEndDate]      = useState("");
   const [trainerId,    setTrainerId]    = useState("");
-  const [status,       setStatus]       = useState("ONGOING");
   const [meetingLink,  setMeetingLink]  = useState("");
+  const [batchId,      setBatchId]      = useState("");
+  const [maxStudents,  setMaxStudents]  = useState("");
 
   /* ── Data state ── */
   const [batches,      setBatches]      = useState([]);
   const [trainers,     setTrainers]     = useState([]);
+  const [status,       setStatus]       = useState("ONGOING");
 
   /* ── UI state ── */
   const [searchTerm,   setSearchTerm]   = useState("");
@@ -128,6 +276,7 @@ function CreateBatch() {
   const [error,        setError]        = useState("");
   const [currentPage,  setCurrentPage]  = useState(1);
   const [viewingBatch, setViewingBatch] = useState(null); // for students modal
+  const [mappingBatch, setMappingBatch] = useState(null); // for map student modal
   const [expandedBatch,setExpandedBatch]= useState(null); // inline expand
 
   const itemsPerPage = 5;
@@ -146,13 +295,32 @@ function CreateBatch() {
 
   const fetchInitialData = async () => {
     try {
-      const [trainerRes, batchRes] = await Promise.all([
+      const [trainerRes, batchRes, nextIdRes] = await Promise.all([
         api.get("/admin/trainers"),
         api.get("/admin/batches"),
+        api.get("/admin/get-next-batch-id"),
       ]);
       setTrainers(trainerRes.data);
       setBatches(batchRes.data);
+      if (nextIdRes.data?.nextId) setBatchId(nextIdRes.data.nextId);
     } catch (err) { console.error("Failed to load initial data", err); }
+  };
+
+  const handleToggleStatus = async (batch) => {
+    const newStatus = batch.status === "INACTIVE" ? "ONGOING" : "INACTIVE";
+    if (!window.confirm(`Mark this batch as ${newStatus.toLowerCase()}?`)) return;
+    try {
+      setLoading(true);
+      await api.put(`/admin/batches/${batch.id}`, { ...batch, status: newStatus });
+      fetchBatches(true);
+      const msg = newStatus === "INACTIVE" ? "Batch deactivated." : "Batch activated.";
+      showMsg("success", msg);
+    } catch { showMsg("error", "Failed to update status."); }
+    finally { setLoading(false); }
+  };
+
+  const handleStartDateChange = (val) => {
+    setStartDate(val);
   };
 
   const fetchBatches = async (silent = false) => {
@@ -164,21 +332,31 @@ function CreateBatch() {
     finally { setRefreshing(false); }
   };
 
-  const resetForm = () => {
+  const resetForm = async () => {
     setBatchName(""); setStartDate(""); setEndDate("");
     setTrainerId(""); setStatus("ONGOING"); setMeetingLink("");
+    setMaxStudents("");
     setEditingId(null); setError(""); setMessage("");
+    // Fetch next ID again for new batch
+    try {
+      const res = await api.get("/admin/get-next-batch-id");
+      if (res.data?.nextId) setBatchId(res.data.nextId);
+    } catch (e) { setBatchId(""); }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!batchName || !startDate || !endDate || !trainerId)
       return showMsg("error", "Please fill all required fields.");
-    if (startDate < today) return showMsg("error", "Start date cannot be in the past.");
+    
+    // Removed: if (startDate < today) return showMsg("error", "Start date cannot be in the past.");
     if (endDate < startDate) return showMsg("error", "End date must be after start date.");
 
     setLoading(true);
-    const payload = { batchName, startDate, endDate, trainerId, status, meetingLink };
+    const payload = { 
+      batchName, startDate, endDate, trainerId, 
+      status, meetingLink, batchId, maxStudents 
+    };
     try {
       if (editingId) {
         await api.put(`/admin/batches/${editingId}`, payload);
@@ -202,6 +380,8 @@ function CreateBatch() {
     setTrainerId(batch.trainer?.id || "");
     setStatus(batch.status || "ONGOING");
     setMeetingLink(batch.meetingLink || "");
+    setBatchId(batch.batchId || "");
+    setMaxStudents(batch.maxStudents || ""); 
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -245,7 +425,27 @@ function CreateBatch() {
 
       {/* Students Modal */}
       {viewingBatch && (
-        <StudentsModal batch={viewingBatch} onClose={() => setViewingBatch(null)} />
+        <StudentsModal 
+          batch={viewingBatch} 
+          onClose={() => setViewingBatch(null)} 
+          onRefresh={() => {
+            fetchBatches(true);
+            const updated = batches.find(b => b.id === viewingBatch.id);
+            if(updated) setViewingBatch(updated);
+          }}
+        />
+      )}
+
+      {/* Map Student Modal */}
+      {mappingBatch && (
+        <MapStudentModal 
+          batchId={mappingBatch.id} 
+          onClose={() => setMappingBatch(null)} 
+          onSaved={() => {
+             fetchBatches(true);
+             showMsg("success", "Student enrolled to batch successfully!");
+          }}
+        />
       )}
 
       {/* ── Page header ── */}
@@ -315,6 +515,21 @@ function CreateBatch() {
             )}
 
             <div className="cb-field">
+              <label className="cb-label">Maximum Students <span className="cb-req">*</span></label>
+              <div className="cb-input-wrap">
+                <input
+                  className="cb-input"
+                  type="number"
+                  min="1"
+                  placeholder="e.g. 50"
+                  value={maxStudents}
+                  onChange={e => setMaxStudents(e.target.value)}
+                />
+                <FaUsers className="cb-input-ico" />
+              </div>
+            </div>
+
+            <div className="cb-field">
               <label className="cb-label">Batch Name <span className="cb-req">*</span></label>
               <input
                 className="cb-input"
@@ -323,6 +538,20 @@ function CreateBatch() {
                 value={batchName}
                 onChange={e => setBatchName(e.target.value)}
               />
+            </div>
+
+            <div className="cb-field">
+              <label className="cb-label">Batch ID <span className="cb-optional">(Auto if empty)</span></label>
+              <div className="cb-input-wrap">
+                <input
+                  className="cb-input"
+                  type="text"
+                  placeholder="e.g. BAT-2024-0001"
+                  value={batchId}
+                  onChange={e => setBatchId(e.target.value)}
+                />
+                <FaIdBadge className="cb-input-ico" />
+              </div>
             </div>
 
             <div className="cb-field">
@@ -342,8 +571,12 @@ function CreateBatch() {
               <div className="cb-field">
                 <label className="cb-label">Start Date <span className="cb-req">*</span></label>
                 <div className="cb-input-wrap">
-                  <input className="cb-input" type="date" value={startDate} min={today}
-                    onChange={e => setStartDate(e.target.value)} />
+                  <input 
+                    className="cb-input" 
+                    type="date" 
+                    value={startDate} 
+                    onChange={e => handleStartDateChange(e.target.value)} 
+                  />
                   <FaCalendarAlt className="cb-input-ico" />
                 </div>
               </div>
@@ -408,13 +641,22 @@ function CreateBatch() {
                 <h3 className="cb-directory__title">Batch Directory</h3>
                 <p className="cb-directory__sub">{filtered.length} batch{filtered.length !== 1 ? "es" : ""} found</p>
               </div>
-              <button
-                className={`cb-refresh-btn ${refreshing ? "cb-refresh-btn--spin" : ""}`}
-                onClick={() => fetchBatches(false)}
-                title="Refresh"
-              >
-                <FaSync />
-              </button>
+              <div className="cb-header-actions">
+                <button
+                  className="cb-add-new-btn"
+                  onClick={resetForm}
+                  title="Create New Batch"
+                >
+                  <FaPlus /> Add New Batch
+                </button>
+                <button
+                  className={`cb-refresh-btn ${refreshing ? "cb-refresh-btn--spin" : ""}`}
+                  onClick={() => fetchBatches(false)}
+                  title="Refresh"
+                >
+                  <FaSync />
+                </button>
+              </div>
             </div>
 
             {/* Filter tabs */}
@@ -510,7 +752,7 @@ function CreateBatch() {
                         </div>
                         <div>
                           <h4 className="cb-batch-card__name">{batch.batchName}</h4>
-                          <span className="cb-batch-card__id">Batch #{batch.id}</span>
+                          <span className="cb-batch-card__id">{batch.batchId || `Batch #${batch.id}`}</span>
                         </div>
                       </div>
                       <div className="cb-batch-card__right">
@@ -648,13 +890,23 @@ function CreateBatch() {
                       <button className="cb-act-btn cb-act-btn--edit" onClick={() => handleEdit(batch)}>
                         <FaEdit /> Edit
                       </button>
+                      {/* <button 
+                        className="cb-act-btn cb-act-btn--edit" 
+                        style={{ background: "#e0e7ff", color: "#4338ca", borderColor: "#c7d2fe" }} 
+                        onClick={() => setMappingBatch(batch)}
+                      >
+                        <FaPlus /> Enrol Student
+                      </button> */}
                       {students.length > 0 && (
                         <button className="cb-act-btn cb-act-btn--view" onClick={() => setViewingBatch(batch)}>
                           <FaUsers /> Students ({students.length})
                         </button>
                       )}
-                      <button className="cb-act-btn cb-act-btn--delete" onClick={() => handleDelete(batch.id)}>
-                        <FaTrashAlt /> Deactivate
+                      <button 
+                        className={`cb-act-btn ${batch.status === "INACTIVE" ? "cb-act-btn--activate" : "cb-act-btn--delete"}`} 
+                        onClick={() => handleToggleStatus(batch)}
+                      >
+                        {batch.status === "INACTIVE" ? <><FaPlus /> Activate</> : <><FaTrashAlt /> Deactivate</>}
                       </button>
                     </div>
                   </div>

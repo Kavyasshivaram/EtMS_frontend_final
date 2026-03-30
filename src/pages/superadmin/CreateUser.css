@@ -633,30 +633,27 @@ button { cursor: pointer; font-family: var(--font-body); }
 /* ═══════════════════════════
    RESPONSIVE
 ═══════════════════════════ */
-@media (max-width: 860px) {
+@media (max-width: 992px) {
   .cu-wrapper {
     grid-template-columns: 1fr;
-    max-width: 560px;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 0;
   }
   .cu-side {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 1rem;
-    padding: 1.75rem 1.75rem;
-    align-items: center;
+    padding: 2rem;
   }
-  .cu-side-brand   { font-size: 1.4rem; }
-  .cu-side-title   { font-size: 1.1rem; flex: 1; min-width: 160px; }
-  .cu-side-desc, .cu-side-stats { display: none; }
-  .cu-side-role-preview { width: 100%; }
 }
 
 @media (max-width: 600px) {
-  .cu-form-panel { padding: 1.75rem 1.25rem 1.5rem; }
+  .cu-form-panel { padding: 1.5rem 1rem; }
   .cu-field-row.two { grid-template-columns: 1fr; }
   .cu-role-grid { grid-template-columns: repeat(2, 1fr); }
+  .cu-side-brand { font-size: 1.5rem; }
+  .cu-side-title { font-size: 1.2rem; }
+  .cu-side-stats { display: none; }
 }
 
-@media (max-width: 400px) {
-  .cu-role-grid { grid-template-columns: 1fr 1fr; }
+@media (max-width: 480px) {
+  .cu-role-grid { grid-template-columns: 1fr; }
 }

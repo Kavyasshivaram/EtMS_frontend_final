@@ -46,7 +46,7 @@ function Trainers() {
                 </div>
 
                 <div className="sl-table-card">
-                    <table className="sl-table">
+                    <table className="sl-table responsive-card-table">
                         <thead>
                             <tr>
                                 <th>Faculty ID</th>
@@ -58,10 +58,10 @@ function Trainers() {
                         <tbody>
                             {trainers.map((trainer) => (
                                 <tr key={trainer.id}>
-                                    <td style={{fontFamily: 'JetBrains Mono', fontWeight: 700}}>{trainer.portalId || trainer.studentId || `#TR-${trainer.id}`}</td>
-                                    <td style={{fontWeight: 700}}>{trainer.name}</td>
-                                    <td>{trainer.email}</td>
-                                    <td>{trainer.phone}</td>
+                                    <td data-label="Faculty ID">#TR-{trainer.id}</td>
+                                    <td style={{fontWeight: 700}} data-label="Personnel Identity">{trainer.name}</td>
+                                    <td data-label="Secure Email">{trainer.email}</td>
+                                    <td data-label="Direct Comms">{trainer.phone}</td>
                                 </tr>
                             ))}
                         </tbody>

@@ -45,10 +45,10 @@ const ForgotPassword = () => {
           <div className="form-group">
             <label>Email Address</label>
             <div className="input-with-icon">
-              <FaEnvelope className="input-icon" />
+              
               <input
                 type="email"
-                placeholder="nayan@example.com"
+                placeholder="hello@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

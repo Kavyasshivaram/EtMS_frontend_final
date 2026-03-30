@@ -14,7 +14,8 @@ function LayoutWrapper() {
     location.pathname.startsWith("/trainer") ||
     location.pathname.startsWith("/admin") ||
     location.pathname.startsWith("/superadmin") ||
-    location.pathname.startsWith("/marketer");
+    location.pathname.startsWith("/marketer") ||
+    location.pathname.startsWith("/counselor");
 
   return (
     <>

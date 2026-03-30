@@ -14,7 +14,7 @@ const Navbar = () => {
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
-    setMobileDrop(null); // Reset drops when closing menu
+    setMobileDrop(null);
   };
 
   const closeMenu = () => {
@@ -27,6 +27,28 @@ const Navbar = () => {
       setMobileDrop(mobileDrop === name ? null : name);
     }
   };
+
+  // Close menu on click outside
+  React.useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (menuOpen && !event.target.closest('.main-header-wrap')) {
+        closeMenu();
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [menuOpen]);
+
+  // Close menu on resize to desktop
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 1024 && menuOpen) {
+        closeMenu();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [menuOpen]);
 
   return (
     <>
@@ -65,6 +87,12 @@ const Navbar = () => {
             {/* NAVIGATION AREA */}
             <nav className={`nav-links-outer ${menuOpen ? "is-open" : ""}`}>
               <ul className="nav-menu-list">
+                {/* MOBILE ONLY AUTH SECTION - MOVED TO TOP FOR VISIBILITY */}
+                <li className="mobile-auth-drawer">
+                  <Link to="/login" className="mob-login" onClick={closeMenu}>Login</Link>
+                  <Link to="/signup" className="mob-reg" onClick={closeMenu}>Register Now</Link>
+                </li>
+
                 <li><NavLink to="/" end className="nav-link-anchor" onClick={closeMenu}>Home</NavLink></li>
 
                 {/* IT Courses Dropdown */}
@@ -134,18 +162,14 @@ const Navbar = () => {
                 <li><NavLink to="/internships" className="nav-link-anchor" onClick={closeMenu}>Internships</NavLink></li>
                 <li><NavLink to="/contact" className="nav-link-anchor" onClick={closeMenu}>Contact Us</NavLink></li>
 
-                {/* MOBILE ONLY AUTH SECTION */}
-                <li className="mobile-auth-drawer">
-                  <Link to="/login" className="mob-login" onClick={closeMenu}>Login</Link>
-                  <Link to="/register" className="mob-reg" onClick={closeMenu}>Register Now</Link>
-                </li>
+
               </ul>
             </nav>
 
             {/* DESKTOP AUTH ACTIONS */}
             <div className="auth-action-btns">
               <Link to="/login" className="login-link hide-mobile">Login</Link>
-              <Link to="/register" className="register-btn-solid hide-mobile">Register Now</Link>
+              <Link to="/signup" className="register-btn-solid hide-mobile">Register Now</Link>
 
               <button className="mobile-hamburger" onClick={toggleMenu}>
                 {menuOpen ? <FaTimes /> : <FaBars />}

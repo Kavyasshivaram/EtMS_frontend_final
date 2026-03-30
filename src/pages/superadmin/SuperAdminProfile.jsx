@@ -100,56 +100,79 @@ function SuperAdminProfile() {
 
   return (
     <div className="sa-page">
-      <div className="sa-wrapper sap-layout-grid">
+      <div className="sa-wrapper um-wrapper-extra um-wrapper-single">
         
-        {/* ── LEFT FIXED ASSET (Sidebar) ── */}
-        <div className="sap-sidebar-wrapper">
-          <div className="sa-side-panel sap-sticky-panel">
-            <div className="sa-side-brand">
-              <span className="cu-side-et">Et</span><span className="cu-side-ms">MS</span>
-            </div>
-            <h2 className="sa-side-title">Security Core</h2>
-            <p className="sa-side-desc">
-              Managing root-level administrative directives and encrypted identity metadata.
-            </p>
-
-            <div className="sap-id-vault">
-               <div className="sap-iv-header">
-                 <FaIdCard /> IDENTITY VAULT
-               </div>
-                <div className="sap-iv-badge">
-                  {profile.portalId || profile.studentId || "ROOT-001"}
-                </div>
-               <div className="sap-iv-status"><span className="sa-dot-active"></span> NODE ACTIVE</div>
-            </div>
-
-            <div className="sap-side-meta">
-               <div className="sap-sm-item">
-                 <span className="sap-sm-label">CLEARANCE</span>
-                 <span className="sap-sm-val">LEVEL 10 [OVERSEER]</span>
-               </div>
-               <div className="sap-sm-item">
-                 <span className="sap-sm-label">LOGON STATUS</span>
-                 <span className="sap-sm-val">ENCRYPTED SESSION</span>
-               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── MAIN FLUID AREA ── */}
+        {/* ── CORE CONTENT PANEL ── */}
         <div className="sap-content-panel">
           
+          {/* New Top Analytics Rectangle */}
+          <div className="sap-stats-rectangle">
+            <div className="sap-stat-card">
+              <div className="sap-stat-icon"><FaMedal /></div>
+              <div className="sap-stat-info">
+                <span className="sap-stat-val">{strength}%</span>
+                <span className="sap-stat-lbl">Integrity Sync</span>
+              </div>
+            </div>
+            <div className="sap-stat-divider" />
+            <div className="sap-stat-card">
+              <div className="sap-stat-icon"><FaUserShield /></div>
+              <div className="sap-stat-info">
+                <span className="sap-stat-val">LEVEL 10</span>
+                <span className="sap-stat-lbl">Clearance</span>
+              </div>
+            </div>
+            <div className="sap-stat-divider" />
+            <div className="sap-stat-card">
+              <div className="sap-stat-icon">
+                <span className="sa-dot-active"></span>
+              </div>
+              <div className="sap-stat-info">
+                <span className="sap-stat-val">ACTIVE</span>
+                <span className="sap-stat-lbl">Node Status</span>
+              </div>
+            </div>
+            <div className="sap-stat-divider" />
+            <div className="sap-stat-card">
+              <div className="sap-stat-info">
+                <span className="sap-stat-val" style={{fontSize: '0.9rem'}}>{profile.portalId || profile.studentId || "ROOT-001"}</span>
+                <span className="sap-stat-lbl">System Identity</span>
+              </div>
+            </div>
+          </div>          {/* 1. Action Hub - NOW FIRST AS REQUESTED */}
+          <div className="sap-hub-section" style={{marginTop: '0', padding: '0 2rem'}}>
+             <div className="sap-hub-header">
+                <div className="sap-hh-left">
+                   <h2>Operations Dashboard</h2>
+                   <p>System Authority Management & Identity Protocol</p>
+                </div>
+                <div className="sap-hh-right">
+                    {!isEditing ? (
+                      <button className="sap-btn-action edit" onClick={handleEdit}>
+                        <FaEdit /> MODIFY CORE
+                      </button>
+                    ) : (
+                      <div className="sap-btn-group">
+                        <button className="sap-btn-action cancel" onClick={handleCancel}><FaTimes /> ABORT</button>
+                        <button className="sap-btn-action save" onClick={handleSave} disabled={saving}>
+                          <FaSave /> {saving ? "SYNCING..." : "COMMIT"}
+                        </button>
+                      </div>
+                    )}
+                </div>
+             </div>
+          </div>
+
           {/* Hero Banner Section */}
-          <div className="sap-banner-complex">
+          <div className="sap-banner-complex" style={{margin: '1rem 2rem 5rem 2rem'}}>
              <div className="sap-banner-gradient"></div>
              <div className="sap-banner-mesh"></div>
              
              {/* Overlapping Floating Identity Card */}
              <div className="sap-identity-card">
                 <div className="sap-ic-left">
-                   <div className={`sap-avatar-frame ${isEditing ? 'editing' : ''}`}>
+                   <div className="sap-avatar-frame">
                       <img src={profile.profilePicture || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} alt="SA" />
-                      {isEditing && <div className="sap-avatar-edit-overlay"><FaCamera /></div>}
                    </div>
                    <div className="sap-ic-info">
                       <div className="sap-role-pill"><FaCrown /> Super Admin</div>
@@ -172,31 +195,7 @@ function SuperAdminProfile() {
              </div>
           </div>
 
-          {/* Action Hub */}
-          <div className="sap-hub-section">
-             <div className="sap-hub-header">
-                <div className="sap-hh-left">
-                   <h2>Operations Dashboard</h2>
-                   <p>System Authority Management & Identity Protocol</p>
-                </div>
-                <div className="sap-hh-right">
-                    {!isEditing ? (
-                      <button className="sap-btn-action edit" onClick={handleEdit}>
-                        <FaEdit /> MODIFY CORE
-                      </button>
-                    ) : (
-                      <div className="sap-btn-group">
-                        <button className="sap-btn-action cancel" onClick={handleCancel}><FaTimes /> ABORT</button>
-                        <button className="sap-btn-action save" onClick={handleSave} disabled={saving}>
-                          <FaSave /> {saving ? "SYNCING..." : "COMMIT"}
-                        </button>
-                      </div>
-                    )}
-                </div>
-             </div>
-
-             {/* Asymmetric Info Grid */}
-             <div className="sap-asym-grid">
+          <div className="sap-asym-grid">
                 
                 {/* 1. Primary Directives (Wide) */}
                 <div className="sap-asym-card sap-asym-card--primary">
@@ -284,6 +283,24 @@ function SuperAdminProfile() {
                    </div>
                 </div>
 
+                {/* 5. Avatar Update - MOVED DOWN AS REQUESTED */}
+                <div className="sap-asym-card sap-asym-card--avatar sap-asym-card--primary">
+                   <div className="sap-card-tag"><FaCamera /> SECURITY ASSET MANAGEMENT</div>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                      <div className="sap-avatar-preview">
+                        <img src={profile.profilePicture || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} alt="Preview" />
+                      </div>
+                      <div className="sap-avatar-controls">
+                        <p style={{ fontSize: '0.85rem', color: 'var(--sa-text-muted)', marginBottom: '1rem' }}>
+                          Upload a high-resolution identification asset. Compressed nodes will be rejected.
+                        </p>
+                        <button className="sap-btn-action edit" style={{ background: 'var(--sa-blue-mid)' }}>
+                           <FaCamera /> UPDATE IDENTITY IMAGE
+                        </button>
+                      </div>
+                   </div>
+                </div>
+
                 {/* Decorative Tech Card */}
                 <div className="sap-asym-card sap-asym-card--visual">
                    <FaCogs size={50} className="sap-rot-icon" />
@@ -292,10 +309,7 @@ function SuperAdminProfile() {
                       <span>LATENCY: 0.12ms</span>
                    </div>
                 </div>
-
              </div>
-          </div>
-
         </div>
       </div>
     </div>

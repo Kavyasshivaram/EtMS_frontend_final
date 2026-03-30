@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../api/axiosConfig";
 import "./StudentCourseDetails.css";
 
 function StudentCourseDetails() {
@@ -16,7 +16,7 @@ function StudentCourseDetails() {
       try {
         setLoading(true);
         // This matches your Spring Boot CourseMaster controller endpoint
-        const response = await axios.get(`http://localhost:8080/api/courses/${id}`);
+        const response = await api.get(`/courses/${id}`);
         setCourse(response.data);
       } catch (err) {
         console.error("Error fetching course details:", err);

@@ -649,6 +649,69 @@
 /* ============================================================
    RESPONSIVE
    ============================================================ */
+
+/* ============================================================
+   BATCH HISTORY
+   ============================================================ */
+.at-batch-history {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--at-border);
+}
+
+.at-batch-history__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--at-navy-dk);
+  margin-bottom: 10px;
+}
+
+.at-batch-history__empty {
+  font-size: 12px;
+  color: var(--at-muted);
+  font-style: italic;
+}
+
+.at-batch-history__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.at-batch-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid var(--at-border);
+  transition: all 0.2s;
+}
+
+.at-batch-pill--ongoing {
+  background: #f0f9ff;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.at-batch-pill--completed {
+  background: var(--at-green-lt);
+  color: var(--at-green);
+  border-color: #bbf7d0;
+}
+
+.at-batch-pill--inactive {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.at-batch-pill__status {
+  font-size: 10px;
+}
+
 @media (max-width: 1200px) {
   .at-layout { grid-template-columns: 360px 1fr; }
   .at-trainer-card__details { grid-template-columns: 1fr 1fr; }

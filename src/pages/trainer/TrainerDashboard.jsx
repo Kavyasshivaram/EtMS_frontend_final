@@ -8,12 +8,14 @@ import {
   FaCalendarAlt,
   FaFileAlt,
   FaClipboardCheck,
-  FaTasks,
   FaChevronLeft,
   FaChevronRight,
   FaVideo,
   FaClock,
-  FaLayerGroup
+  FaLayerGroup,
+  FaBullhorn,
+  FaChartLine,
+  FaBed
 } from "react-icons/fa";
 import "./TrainerDashboard.css";
 
@@ -76,9 +78,10 @@ const STAT_ACCENTS = {
 };
 
 const QUICK_ACTIONS = [
-  { label: "Materials",   icon: FaFileAlt,       path: "/trainer/materials",   color: "#f59e0b", bg: "rgba(245,158,11,0.12)"  },
+  { label: "My Profile",  icon: FaUser,           path: "/trainer/profile",     color: "#3b82f6", bg: "rgba(59,130,246,0.12)"  },
   { label: "Attendance",  icon: FaClipboardCheck, path: "/trainer/attendance",  color: "#10b981", bg: "rgba(16,185,129,0.12)"  },
-  { label: "Tasks",       icon: FaTasks,          path: "/trainer/assignments", color: "#6366f1", bg: "rgba(99,102,241,0.12)"  },
+  { label: "Leaves",      icon: FaBed,            path: "/trainer/leave",       color: "#f59e0b", bg: "rgba(245,158,11,0.12)"  },
+  { label: "Assignments", icon: FaFileAlt,        path: "/trainer/assignments", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)"  },
   { label: "Courses",     icon: FaBook,           path: "/trainer/course",      color: "#ef4444", bg: "rgba(239,68,68,0.12)"   },
 ];
 

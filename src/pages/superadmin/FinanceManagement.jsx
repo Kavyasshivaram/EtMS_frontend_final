@@ -99,7 +99,7 @@ function FinanceManagement() {
 
                     <div className="sl-table-card">
                         <h3><FaFileInvoiceDollar /> Salary Disbursements</h3>
-                        <table className="sl-table">
+                        <table className="sl-table responsive-card-table">
                             <thead>
                                 <tr>
                                     <th>Recipient Unit</th>
@@ -111,10 +111,10 @@ function FinanceManagement() {
                             <tbody>
                                 {salaries.map(s => (
                                     <tr key={s.id}>
-                                        <td style={{fontWeight: 700}}>{s.user?.name}</td>
-                                        <td>₹{s.amount.toLocaleString()}</td>
-                                        <td>{s.month} {s.year}</td>
-                                        <td><span className="sl-status-pill sl-status-pill--active">{s.status}</span></td>
+                                        <td style={{fontWeight: 700}} data-label="Recipient Unit">{s.user?.name}</td>
+                                        <td data-label="Disbursement">₹{s.amount.toLocaleString()}</td>
+                                        <td data-label="Temporal Value">{s.month} {s.year}</td>
+                                        <td data-label="Status"><span className="sl-status-pill sl-status-pill--active">{s.status}</span></td>
                                     </tr>
                                 ))}
                                 {salaries.length === 0 && <tr><td colSpan="4" style={{textAlign: 'center', padding: '2rem'}}>No disbursements logged.</td></tr>}
@@ -124,7 +124,7 @@ function FinanceManagement() {
 
                     <div className="sl-table-card">
                         <h3><FaClockRotateLeft /> Operational Burn Log</h3>
-                        <table className="sl-table">
+                        <table className="sl-table responsive-card-table">
                             <thead>
                                 <tr>
                                     <th>Objective</th>
@@ -136,10 +136,10 @@ function FinanceManagement() {
                             <tbody>
                                 {expenses.map(e => (
                                     <tr key={e.id}>
-                                        <td style={{fontWeight: 700}}>{e.title}</td>
-                                        <td>{e.category}</td>
-                                        <td>{e.date}</td>
-                                        <td style={{color: 'var(--sa-red)', fontWeight: 700}}>- ₹{e.amount.toLocaleString()}</td>
+                                        <td style={{fontWeight: 700}} data-label="Objective">{e.title}</td>
+                                        <td data-label="Category">{e.category}</td>
+                                        <td data-label="Audit Date">{e.date}</td>
+                                        <td style={{color: 'var(--sa-red)', fontWeight: 700}} data-label="Magnitude">- ₹{e.amount.toLocaleString()}</td>
                                     </tr>
                                 ))}
                                 {expenses.length === 0 && <tr><td colSpan="4" style={{textAlign: 'center', padding: '2rem'}}>No recent expenses.</td></tr>}

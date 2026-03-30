@@ -94,6 +94,19 @@ const AVATAR_COLORS = [
   { bg:"#fdf2f8",color:"#db2777"},{bg:"#ecfeff",color:"#0891b2"},
 ];
 
+const formatTime12h = (dateStr) => {
+  if (!dateStr) return "—";
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "—";
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  } catch (e) { return "—"; }
+};
+
 const PAGE_SIZE = 10;
 
 function AdminAttendance() {
@@ -196,16 +209,26 @@ function AdminAttendance() {
             <p className="aa-header__sub">View, edit and export student attendance records</p>
           </div>
         </div>
-        {records.length > 0 && (
-          <div className="aa-export-row">
-            <button className="aa-export-btn aa-export-btn--csv" onClick={() => exportCSV(records)}>
-              ⬇ CSV
-            </button>
-            <button className="aa-export-btn aa-export-btn--pdf" onClick={() => generatePDF(records, batchName)}>
-              🖨 PDF
-            </button>
-          </div>
-        )}
+        <div className="aa-export-row">
+          <button 
+            className="aa-export-btn aa-export-btn--csv" 
+            style={{ background: "#4f46e5", color: "white", borderColor: "#4338ca", marginRight: "1rem" }}
+            onClick={() => window.open('/admin/qr-station', '_blank')}
+          >
+            📱 Open QR Station
+          </button>
+          
+          {records.length > 0 && (
+            <>
+              <button className="aa-export-btn aa-export-btn--csv" onClick={() => exportCSV(records)}>
+                ⬇ CSV
+              </button>
+              <button className="aa-export-btn aa-export-btn--pdf" onClick={() => generatePDF(records, batchName)}>
+                🖨 PDF
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ══ FILTER BAR ══ */}
@@ -342,15 +365,17 @@ function AdminAttendance() {
 
             {/* Table */}
             <div className="aa-table-wrap">
-              <table className="aa-table">
+              <table className="aa-table responsive-card-table">
                 <colgroup>
                   <col style={{width:"46px"}}/>
                   <col style={{width:"170px"}}/>
-                  <col style={{width:"190px"}}/>
-                  <col style={{width:"110px"}}/>
-                  <col style={{width:"175px"}}/>
-                  <col style={{width:"92px"}}/>
-                  <col style={{width:"176px"}}/>
+                  <col style={{width:"150px"}}/>
+                  <col style={{width:"100px"}}/>
+                  <col style={{width:"150px"}}/>
+                  <col style={{width:"90px"}}/>
+                  <col style={{width:"100px"}}/>
+                  <col style={{width:"80px"}}/>
+                  <col style={{width:"160px"}}/>
                 </colgroup>
                 <thead>
                   <tr>
@@ -359,6 +384,8 @@ function AdminAttendance() {
                     <th>Email</th>
                     <th>Date</th>
                     <th>Topic</th>
+                    <th>Late Mins</th>
+                    <th className="aa-th-c">Marked At</th>
                     <th className="aa-th-c">Status</th>
                     <th className="aa-th-c">Update</th>
                   </tr>
@@ -371,40 +398,62 @@ function AdminAttendance() {
                     return (
                       <tr key={r.id} className={r.isModified ? "aa-row--modified" : ""}>
 
-                        <td className="aa-td aa-td--num">
+                        <td className="aa-td aa-td--num" data-label="#">
                           <span className="aa-rnum">{idx+1}</span>
                         </td>
 
-                        <td className="aa-td">
+                        <td className="aa-td" data-label="Student">
                           <div className="aa-student">
                             <div className="aa-avatar"
                               style={{background:scheme.bg, color:scheme.color}}>
                               {(r.studentName||"?").charAt(0).toUpperCase()}
                             </div>
-                             <span className="aa-name">{r.studentName}</span>
-                             <span className="aa-id-sub" style={{fontSize: '10px', color: '#64748b', display: 'block'}}>{r.formattedId}</span>
+                             <div className="aa-name-wrap">
+                               <span className="aa-name">
+                                 {r.studentName}
+                                 <span className={`hb-mode-badge hb-mode-badge--${(r.courseMode || "OFFLINE").toLowerCase()}`} 
+                                   style={{ marginLeft: '6px', fontSize: '9px', verticalAlign: 'middle' }}>
+                                   {r.courseMode || "OFFLINE"}
+                                 </span>
+                                 {r.approvedOnline && <span className="aa-online-status" title="Approved for Online Permission" style={{ 
+                                   marginLeft: '6px', fontSize: '9px', background: '#dbeafe', color: '#1d4ed8', 
+                                   padding: '1px 5px', borderRadius: '4px', fontWeight: '800', textTransform: 'uppercase'
+                                 }}>Online</span>}
+                               </span>
+                               <span className="aa-id-sub" style={{fontSize: '10px', color: '#64748b', display: 'block'}}>{r.formattedId}</span>
+                             </div>
                            </div>
                          </td>
 
-                        <td className="aa-td">
+                        <td className="aa-td" data-label="Email">
                           <a href={`mailto:${r.studentEmail}`} className="aa-email">
                             {r.studentEmail}
                           </a>
                         </td>
 
-                        <td className="aa-td aa-td--date">{r.date}</td>
+                        <td className="aa-td aa-td--date" data-label="Date">{r.date}</td>
 
-                        <td className="aa-td">
+                        <td className="aa-td" data-label="Topic">
                           <span className="aa-topic" title={r.topic}>{r.topic||"—"}</span>
                         </td>
 
-                        <td className="aa-td aa-td--c">
+                        <td className="aa-td" data-label="Late Mins">
+                          {r.status === 'LATE' ? (
+                            <span style={{ fontWeight: '600', color: '#b45309' }}>{r.lateMinutes || 0}m</span>
+                          ) : "—"}
+                        </td>
+
+                        <td className="aa-td aa-td--c" data-label="Marked At">
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>{formatTime12h(r.createdAt)}</span>
+                        </td>
+
+                        <td className="aa-td aa-td--c" data-label="Status">
                           <span className="aa-badge" style={{
                             background:cfg.bg, color:cfg.color, borderColor:cfg.border
                           }}>{cfg.label}</span>
                         </td>
 
-                        <td className="aa-td aa-td--c">
+                        <td className="aa-td aa-td--c" data-label="Update">
                           <div className="aa-toggle">
                             {Object.entries(STATUS_CFG).map(([key, c]) => (
                               <button key={key}

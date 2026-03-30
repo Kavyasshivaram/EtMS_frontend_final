@@ -69,7 +69,7 @@ const ResetPassword = () => {
           <div className="form-group">
             <label>New Password</label>
             <div className="input-with-icon">
-              <FaLock className="input-icon" />
+              
               <input
                 type="password"
                 placeholder="••••••••"
@@ -83,7 +83,7 @@ const ResetPassword = () => {
           <div className="form-group">
             <label>Confirm Password</label>
             <div className="input-with-icon">
-              <FaLock className="input-icon" />
+              
               <input
                 type="password"
                 placeholder="••••••••"

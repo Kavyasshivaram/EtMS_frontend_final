@@ -28,6 +28,7 @@ function Login() {
         TRAINER: "/trainer/dashboard",
         STUDENT: "/student/dashboard",
         MARKETER: "/marketer/dashboard",
+        COUNSELOR: "/counselor/dashboard",
       };
 
       navigate(routes[user.role] || "/login");

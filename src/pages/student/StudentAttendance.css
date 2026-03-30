@@ -505,3 +505,29 @@
 @media (max-width: 800px) {
   .sa-metrics-grid { grid-template-columns: 1fr 1fr; }
 }
+
+@media (max-width: 600px) {
+  .sa-viewport { padding: 15px; }
+  .sa-main-container { gap: 16px; }
+  .sa-top-header { flex-direction: column; align-items: flex-start; gap: 15px; text-align: left; }
+  .sa-brand-group { flex-direction: row; align-items: center; gap: 12px; }
+  .sa-icon-box { width: 44px; height: 44px; font-size: 20px; }
+  .sa-title-stack h1 { font-size: 22px; }
+  .sa-header-meta { flex-direction: column; align-items: flex-start; gap: 8px; }
+  
+  .sa-rate-wide-card { flex-direction: column; padding: 20px; align-items: flex-start; gap: 15px; }
+  .sa-rate-gauge { margin: 0 auto; }
+  
+  .sa-filter-section { padding: 20px; }
+  .sa-extra-filter { flex-wrap: wrap; }
+  .sa-extra-filter input { flex: 1; min-width: 120px; }
+  .sa-apply-btn { width: 100%; }
+}
+
+@media (max-width: 400px) {
+  .sa-viewport { padding: 10px; }
+  .sa-metrics-grid { grid-template-columns: 1fr; }
+  .sa-metric-card { padding: 16px; }
+  .sa-log-head { padding: 15px; }
+  .sa-table-main td, .sa-table-main th { padding: 12px 15px; }
+}

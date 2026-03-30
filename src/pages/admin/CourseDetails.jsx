@@ -12,6 +12,282 @@ import {
 } from "react-icons/fa";
 import "./CourseDetails.css";
 
+/* ══════════════════════════════════════════════════
+   EDIT FEE MODAL
+   Lets admin update a student's course fee & mode
+   ══════════════════════════════════════════════════ */
+function EditFeeModal({ student, onClose, onSaved }) {
+  const [feePaid, setFeePaid]       = useState(student.feePaid || 0);
+  const [feePending, setFeePending] = useState(student.feePending || 0);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState("");
+  const overlayRef                  = useRef(null);
+
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  const handleSave = async () => {
+    setError("");
+    setSaving(true);
+    try {
+      await api.put(`/admin/student-course-mappings/${student.mappingId}/fees`, {
+        feePaid: Number(feePaid),
+        feePending: Number(feePending),
+      });
+      onSaved({ ...student, feePaid: Number(feePaid), feePending: Number(feePending) });
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update fees.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return createPortal(
+    <div className="ecm-overlay" ref={overlayRef} onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
+      <div className="ecm-modal" role="dialog" aria-modal="true">
+        <div className="ecm-header">
+          <div className="ecm-header__left">
+            <div className="ecm-header__icon"><FaBookOpen /></div>
+            <div>
+              <h2 className="ecm-header__title">Update Fees</h2>
+              <p className="ecm-header__sub">{student.studentName}</p>
+            </div>
+          </div>
+          <button className="ecm-close" onClick={onClose}><FaTimes /></button>
+        </div>
+        <div className="ecm-body">
+          {error && <div className="ecm-error"><FaBan className="ecm-error__ico" /><span>{error}</span></div>}
+          <div className="ecm-field">
+            <label className="ecm-label">Fee Paid (₹)</label>
+            <input className="ecm-input" type="number" min="0" value={feePaid} onChange={(e) => setFeePaid(e.target.value)} />
+          </div>
+          <div className="ecm-field">
+            <label className="ecm-label">Fee Pending (₹)</label>
+            <input className="ecm-input" type="number" min="0" value={feePending} onChange={(e) => setFeePending(e.target.value)} />
+          </div>
+        </div>
+        <div className="ecm-footer">
+          <button className="ecm-btn ecm-btn--cancel" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="ecm-btn ecm-btn--save" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save Fees"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ══════════════════════════════════════════════════
+   MAP STUDENT MODAL
+   Lets admin map a new student to this course
+   ══════════════════════════════════════════════════ */
+function MapStudentModal({ courseId, enrolledStudentIds = [], onClose, onSaved }) {
+  const [students, setStudents]     = useState([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [courseMode, setCourseMode] = useState("OFFLINE");
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [modalPage, setModalPage]   = useState(1);
+  const overlayRef                  = useRef(null);
+
+  const studentsPerModalPage = 3;
+
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const res = await api.get("/admin/students");
+        setStudents(res.data.filter(s => s.status !== "INACTIVE"));
+      } catch (err) {
+        setError("Failed to load students list.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStudents();
+  }, []);
+
+  const handleSave = async () => {
+    setError("");
+    if (!selectedId) { setError("Please select a student."); return; }
+    setSaving(true);
+    try {
+      await api.post(`/admin/enrolments`, {
+        studentId: selectedId,
+        courseId: courseId,
+        courseMode: courseMode
+      });
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(typeof err.response?.data?.error === 'string' ? err.response.data.error : (err.response?.data?.message || "Failed to enrol student."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredStudents = students
+    .filter(s => s.status !== "INACTIVE" && (s.portalId || s.studentId))
+    // Filter out already enrolled students
+    .filter(s => !enrolledStudentIds.includes(s.id))
+    .filter(s => 
+      s.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.studentId && s.studentId.toString().includes(searchTerm)) ||
+      (s.portalId && s.portalId.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+  const totalModalPages = Math.ceil(filteredStudents.length / studentsPerModalPage);
+  const paginatedStudents = filteredStudents.slice(
+    (modalPage - 1) * studentsPerModalPage,
+    modalPage * studentsPerModalPage
+  );
+
+  return createPortal(
+    <div className="ecm-overlay" ref={overlayRef} onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
+      <div className="ecm-modal ecm-modal--map" role="dialog" aria-modal="true">
+        <div className="ecm-header">
+          <div className="ecm-header__left">
+            <div className="ecm-header__icon"><FaUserCheck /></div>
+            <div>
+              <h2 className="ecm-header__title">Enrol Student</h2>
+              <p className="ecm-header__sub">Map student to this course</p>
+            </div>
+          </div>
+          <button className="ecm-close" onClick={onClose}><FaTimes /></button>
+        </div>
+
+        <div className="ecm-body">
+          {error && <div className="ecm-error"><FaBan className="ecm-error__ico" /><span>{error}</span></div>}
+          
+          {loading ? (
+            <div className="esm-loader">
+              <div className="cd2-action-spinner" />
+              <span>Fetching students...</span>
+            </div>
+          ) : (
+            <>
+              <div className="ecm-field">
+                <label className="ecm-label">Select Student</label>
+                <div className="esm-search-wrap">
+                  <FaSearch className="esm-search-icon" />
+                  <input 
+                    type="text" 
+                    className="ecm-input esm-search-input" 
+                    placeholder="Search by name, email or ID..." 
+                    value={searchTerm} 
+                    onChange={e => { setSearchTerm(e.target.value); setModalPage(1); }}
+                  />
+                </div>
+                
+                <div className="esm-student-list">
+                  {paginatedStudents.length > 0 ? (
+                    paginatedStudents.map((s, idx) => {
+                      const colorIndex = ( (modalPage-1) * studentsPerModalPage + idx ) % AVATAR_COLORS.length;
+                      const color = AVATAR_COLORS[colorIndex];
+                      return (
+                        <div 
+                          key={s.id} 
+                          className={`esm-student-card ${selectedId === s.id ? 'esm-student-card--selected' : ''}`}
+                          onClick={() => setSelectedId(s.id)}
+                        >
+                          <div className="esm-avatar" style={{ background: color.bg, color: color.color }}>
+                            {s.name?.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="esm-student-info">
+                            <span className="esm-student-name">{s.name}</span>
+                            <span className="esm-student-meta">{s.portalId || s.studentId} • {s.email}</span>
+                          </div>
+                          <div className="esm-selected-mark">
+                            <FaCheckCircle />
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="esm-list-empty">
+                      <FaUsers className="esm-empty-icon" />
+                      <p>No students found matching "{searchTerm}"</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Pagination */}
+                {totalModalPages > 1 && (
+                  <div className="esm-pagination">
+                    <button 
+                      className="esm-pag-btn" 
+                      onClick={() => setModalPage(p => Math.max(1, p - 1))}
+                      disabled={modalPage === 1}
+                      title="Previous Page"
+                    >
+                      <FaChevronLeft />
+                    </button>
+                    <span className="esm-pag-info">
+                      Page <b>{modalPage}</b> of {totalModalPages}
+                    </span>
+                    <button 
+                      className="esm-pag-btn" 
+                      onClick={() => setModalPage(p => Math.min(totalModalPages, p + 1))}
+                      disabled={modalPage === totalModalPages}
+                      title="Next Page"
+                    >
+                      <FaChevronRight />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="ecm-field" style={{ marginTop: '0.75rem' }}>
+                <label className="ecm-label">Course Mode</label>
+                <select className="ecm-input" value={courseMode} onChange={e => setCourseMode(e.target.value)}>
+                  <option value="OFFLINE">Offline</option>
+                  <option value="ONLINE">Online</option>
+                  <option value="HYBRID">Hybrid</option>
+                </select>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="ecm-footer">
+          <button className="ecm-btn ecm-btn--cancel" onClick={onClose} disabled={saving}>Cancel</button>
+          <button 
+            className="ecm-btn ecm-btn--save" 
+            onClick={handleSave} 
+            disabled={saving || loading || !selectedId}
+          >
+            {saving ? (
+              <>
+                <div className="ecm-spinner" />
+                <span>Enrolling…</span>
+              </>
+            ) : (
+              <>
+                <FaUserCheck />
+                <span>Enrol Student</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 /* ── Avatar colours ── */
 const AVATAR_COLORS = [
   { bg: "#eff6ff", color: "#2563eb" },
@@ -377,6 +653,8 @@ function CourseDetails() {
   const [profileStudent,     setProfileStudent]     = useState(null);
   const [profileColorScheme, setProfileColorScheme] = useState(null);
   const [editStudent,        setEditStudent]        = useState(null);
+  const [editFeeStudent,     setEditFeeStudent]     = useState(null);
+  const [mapStudentModal,    setMapStudentModal]    = useState(false);
 
   /* per-row action loading state  { [studentId]: 'toggle' | 'edit' | null } */
   const [actionLoading, setActionLoading] = useState({});
@@ -411,8 +689,8 @@ function CourseDetails() {
   const handleToggleStatus = async (student) => {
     setActionLoading(prev => ({ ...prev, [student.studentId]: "toggle" }));
     try {
-      const res = await api.put(`/admin/students/${student.studentId}/toggle-status`);
-      const newStatus = res.data.newStatus; // "ACTIVE" or "INACTIVE"
+      const res = await api.put(`/admin/student-course-mappings/${student.mappingId}/toggle-status`);
+      const newStatus = res.data.includes("ACTIVE") ? "ACTIVE" : "INACTIVE";
 
       /* Update local course state so table re-renders instantly */
       setCourse(prev => ({
@@ -430,6 +708,16 @@ function CourseDetails() {
     }
   };
 
+  const handleFeeSaved = (updatedStudent) => {
+    setCourse(prev => ({
+      ...prev,
+      students: prev.students.map(s =>
+        s.studentId === updatedStudent.studentId ? { ...s, ...updatedStudent } : s
+      ),
+    }));
+    showToast("success", `Fees updated for ${updatedStudent.studentName} ✅`);
+  };
+
   /* ── Callback when edit modal saves successfully ── */
   const handleContactSaved = (updatedStudent) => {
     setCourse(prev => ({
@@ -439,6 +727,26 @@ function CourseDetails() {
       ),
     }));
     showToast("success", `Contact updated for ${updatedStudent.studentName} ✅`);
+  };
+
+  const handleViewSyllabus = async (courseId) => {
+    try {
+      const response = await api.get(`/admin/courses/${courseId}/syllabus?mode=view`, {
+        responseType: 'blob'
+      });
+      const file = new Blob([response.data], { type: 'application/pdf' });
+      const fileURL = URL.createObjectURL(file);
+      window.open(fileURL, '_blank');
+    } catch (err) {
+      console.error("Error viewing syllabus", err);
+      showToast("error", "Failed to open syllabus. Please try again.");
+    }
+  };
+
+  const handleMappingSaved = () => {
+    setMapStudentModal(false);
+    fetchCourseDetails();
+    showToast("success", "Student enrolled successfully! ✅");
   };
 
   if (loading || !course)
@@ -488,6 +796,14 @@ function CourseDetails() {
           onSaved={handleContactSaved}
         />
       )}
+      {mapStudentModal && (
+        <MapStudentModal
+          courseId={course.id}
+          enrolledStudentIds={course.students?.map(s => s.studentId) || []}
+          onClose={() => setMapStudentModal(false)}
+          onSaved={handleMappingSaved}
+        />
+      )}
 
       {/* ── Navbar ── */}
       <nav className="cd2-nav">
@@ -527,14 +843,20 @@ function CourseDetails() {
               {course.description || "This course teaches the most popular industry tools and concepts."}
             </p>
             <div className="cd2-hero__actions">
+              <button
+                className="cd2-syllabus-btn"
+                style={{ background: "#2563eb", color: "#fff", borderColor: "#2563eb" }}
+                onClick={() => setMapStudentModal(true)}
+              >
+                <FaUserCheck /><span>Enrol Student</span>
+              </button>
               {course.syllabusFileName && (
-                <a
-                  href={`${api.defaults.baseURL}/admin/courses/download/${course.id}`}
-                  target="_blank" rel="noopener noreferrer"
+                <button
                   className="cd2-syllabus-btn"
+                  onClick={() => handleViewSyllabus(course.id)}
                 >
                   <FaDownload /><span>Download Syllabus</span>
-                </a>
+                </button>
               )}
               {course.syllabusFileName && (
                 <div className="cd2-hero__file-name">
@@ -626,13 +948,14 @@ function CourseDetails() {
             </p>
 
             <div className="cd2-table-wrap">
-              <table className="cd2-table">
+              <table className="cd2-table responsive-card-table">
                 <thead>
                   <tr>
                     <th className="cd2-th cd2-th--sn">#</th>
                     <th className="cd2-th">Student</th>
-                    <th className="cd2-th">Email Address</th>
-                    <th className="cd2-th">Phone</th>
+                    <th className="cd2-th">Contact</th>
+                    <th className="cd2-th">Member Since</th>
+                    <th className="cd2-th cd2-th--center">Mode</th>
                     <th className="cd2-th cd2-th--center">Status</th>
                     <th className="cd2-th cd2-th--center">Actions</th>
                   </tr>
@@ -650,12 +973,12 @@ function CourseDetails() {
                         className={`cd2-row ${!isActive ? "cd2-row--inactive" : ""}`}
                       >
 
-                        <td className="cd2-td cd2-td--sn">
+                        <td className="cd2-td cd2-td--sn" data-label="# ">
                           <span className="cd2-row-num">{rowNum}</span>
                         </td>
 
                         {/* Clickable name → profile modal */}
-                        <td className="cd2-td">
+                        <td className="cd2-td" data-label="Student">
                           <div
                             className="cd2-student cd2-student--clickable"
                             onClick={() => { setProfileStudent(student); setProfileColorScheme(scheme); }}
@@ -676,16 +999,12 @@ function CourseDetails() {
                           </div>
                         </td>
 
-                        {/* Email */}
-                        <td className="cd2-td">
+                        {/* Contact */}
+                        <td className="cd2-td" data-label="Contact">
                           <a href={`mailto:${student.studentEmail}`} className="cd2-contact-link cd2-contact-link--email">
                             <div className="cd2-contact-icon cd2-contact-icon--email"><FaEnvelope /></div>
                             <span>{student.studentEmail}</span>
                           </a>
-                        </td>
-
-                        {/* Phone */}
-                        <td className="cd2-td">
                           {student.phone ? (
                             <a href={`tel:${student.phone}`} className="cd2-contact-link cd2-contact-link--phone">
                               <div className="cd2-contact-icon cd2-contact-icon--phone"><FaPhoneAlt /></div>
@@ -696,8 +1015,26 @@ function CourseDetails() {
                           )}
                         </td>
 
+                        {/* Enrolled At */}
+                        <td className="cd2-td" data-label="Member Since">
+                           <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
+                             {student.enrolledAt ? new Date(student.enrolledAt).toLocaleDateString("en-IN", {
+                               day: "2-digit",
+                               month: "short",
+                               year: "numeric"
+                             }) : "N/A"}
+                           </div>
+                        </td>
+
+                        {/* Mode */}
+                        <td className="cd2-td cd2-td--center" data-label="Mode">
+                           <span className="cd2-status" style={{ background: "#f3f4f6", color: "#374151" }}>
+                             {student.courseMode || "OFFLINE"}
+                           </span>
+                        </td>
+
                         {/* Status badge */}
-                        <td className="cd2-td cd2-td--center">
+                        <td className="cd2-td cd2-td--center" data-label="Status">
                           <span className={`cd2-status ${isActive ? "cd2-status--active" : "cd2-status--inactive"}`}>
                             {isActive
                               ? <><FaCheckCircle className="cd2-status__dot" /> Active</>
@@ -707,7 +1044,7 @@ function CourseDetails() {
                         </td>
 
                         {/* Actions */}
-                        <td className="cd2-td cd2-td--center">
+                        <td className="cd2-td cd2-td--center" data-label="Actions">
                           <div className="cd2-action-group">
 
                             {/* Edit contact */}
@@ -716,8 +1053,9 @@ function CourseDetails() {
                               onClick={() => setEditStudent(student)}
                               title="Edit email & phone"
                             >
-                              <FaEdit /> Edit
+                              <FaEdit />
                             </button>
+                            
 
                             {/* Activate / Deactivate */}
                             <button

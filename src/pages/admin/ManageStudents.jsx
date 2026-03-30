@@ -1,573 +1,417 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../../api/axiosConfig";
 import {
   FaUserGraduate,
-  FaBookOpen,
-  FaLayerGroup,
-  FaSearch,
-  FaLink,
-  FaCheckCircle,
-  FaInfoCircle,
+  FaEnvelope,
+  FaPhoneAlt,
   FaEdit,
-  FaTimes
+  FaSearch,
+  FaFilter,
+  FaSyncAlt,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaEllipsisV,
+  FaArrowLeft,
+  FaArrowRight,
+  FaUserEdit,
+  FaGlobe,
+  FaUserSlash,
+  FaCircle
 } from "react-icons/fa";
 import "./ManageStudents.css";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 10;
 
-const AVATAR_COLORS = [
-  { bg: "#eff6ff", color: "#2563eb" },
-  { bg: "#f5f3ff", color: "#7c3aed" },
-  { bg: "#ecfdf5", color: "#059669" },
-  { bg: "#fff7ed", color: "#ea580c" },
-  { bg: "#fdf2f8", color: "#db2777" },
-  { bg: "#ecfeff", color: "#0891b2" },
-];
-
-/* Which form panel is active */
-const PANEL_COURSE = "course";
-const PANEL_BATCH  = "batch";
+const MODES = ["ONLINE", "OFFLINE", "HYBRID"];
+const STATUSES = ["ACTIVE", "INACTIVE"];
 
 function ManageStudents() {
-  const [students,       setStudents]       = useState([]);
-  const [courses,        setCourses]        = useState([]);
-  const [batches,        setBatches]        = useState([]);
+  const [students, setStudents] = useState([]);
   const [courseMappings, setCourseMappings] = useState([]);
-  const [batchMappings,  setBatchMappings]  = useState([]);
-
-  /* form state */
-  const [activePanel,          setActivePanel]          = useState(PANEL_COURSE);
-  const [selectedStudentCourse, setSelectedStudentCourse] = useState("");
-  const [selectedCourse,       setSelectedCourse]       = useState("");
-  const [selectedStudentBatch,  setSelectedStudentBatch]  = useState("");
-  const [selectedBatch,        setSelectedBatch]        = useState("");
-
-  /* edit mode — which mapping is being edited */
-  const [editingCourseMapping, setEditingCourseMapping] = useState(null); // { studentId, courseName, mappingId }
-  const [editingBatchMapping,  setEditingBatchMapping]  = useState(null); // { studentId, batchName,  mappingId }
-
-  /* list controls */
-  const [searchTerm,  setSearchTerm]  = useState("");
+  const [batchMappings, setBatchMappings] = useState([]);
+  
+  /* Filtering & Pagination */
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  
+  /* Editing States */
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
+  /* UI Feedback */
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  /* feedback */
-  const [message, setMessage] = useState("");
-  const [error,   setError]   = useState("");
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => { fetchData(); }, []);
-  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const [s, c, b, cm, bm] = await Promise.all([
+      const [s, cm, bm] = await Promise.all([
         api.get("/admin/students"),
-        api.get("/admin/courses"),
-        api.get("/admin/batches"),
         api.get("/admin/student-course-mappings"),
-        api.get("/admin/student-batch-mappings"),
+        api.get("/admin/student-batch-mappings")
       ]);
       setStudents(s.data);
-      setCourses(c.data);
-      const activeBatches = b.data.filter(
-        batch => batch.status === "ONGOING" || batch.status === "ACTIVE"
-      );
-      setBatches(activeBatches);
       setCourseMappings(cm.data);
       setBatchMappings(bm.data);
-    } catch {
-      setError("Failed to fetch data. Please refresh.");
-    }
-  };
-
-  const showSuccess = (msg) => {
-    setMessage(msg);
-    setError("");
-    setTimeout(() => setMessage(""), 3000);
-  };
-
-  /* ── Course enrollment / re-enrollment ── */
-  const handleCourseSubmit = async () => {
-    if (!selectedStudentCourse || !selectedCourse) {
-      return setError("Select both a student and a course.");
-    }
-    try {
-      setLoading(true);
-      setError("");
-      await api.post("/admin/student-course-mappings", null, {
-        params: { studentId: selectedStudentCourse, courseId: selectedCourse }
-      });
-      showSuccess(
-        editingCourseMapping
-          ? "Course mapping updated successfully!"
-          : "Student enrolled in course successfully!"
-      );
-      fetchData();
-      resetCourseForm();
     } catch (err) {
-      setError(err.response?.data || "Enrollment failed");
+      showToast("Failed to fetch data", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ── Batch allotment / re-allotment ── */
-  const handleBatchSubmit = async () => {
-    if (!selectedStudentBatch || !selectedBatch) {
-      return setError("Select both a student and a batch.");
-    }
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  /* ── API Handlers ── */
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
     try {
-      setLoading(true);
-      setError("");
-      await api.post("/admin/student-batch-mappings", null, {
-        params: { studentId: selectedStudentBatch, batchId: selectedBatch }
-      });
-      showSuccess(
-        editingBatchMapping
-          ? "Batch mapping updated successfully!"
-          : "Batch allotted successfully!"
-      );
+      // Clean payload: only send fields the backend expects for update
+      const payload = {
+        name: editingStudent.name,
+        email: editingStudent.email,
+        phone: editingStudent.phone,
+        status: editingStudent.status
+      };
+      
+      await api.put(`/admin/students/${editingStudent.id}`, payload);
+      showToast("Student profile updated successfully!");
+      setIsEditModalOpen(false);
       fetchData();
-      resetBatchForm();
     } catch (err) {
-      setError(err.response?.data || "Allotment failed");
+      const errorMsg = err.response?.data?.error || "Update failed. Please check your data.";
+      showToast(errorMsg, "error");
+      console.error("Update Error:", err);
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
-  /* ── Edit handlers — pre-fill form & switch panel ── */
-  const handleEditCourse = (item) => {
-    setActivePanel(PANEL_COURSE);
-    setEditingCourseMapping(item);
-    // Pre-select the student
-    const student = students.find(s => s.name === item.studentName || s.id === item.studentId);
-    setSelectedStudentCourse(student?.id?.toString() || "");
-    // Pre-select the course
-    const course = courses.find(c => c.courseName === item.courseName);
-    setSelectedCourse(course?.id?.toString() || "");
-    setError("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const handleChangeMode = async (mappingId, newMode) => {
+    setActionLoading(true);
+    try {
+      await api.patch(`/admin/student-course-mappings/${mappingId}/mode`, { courseMode: newMode });
+      showToast(`Mode updated to ${newMode} successfully!`);
+      // Update local state immediately for better UX
+      setCourseMappings(prev => prev.map(m => 
+        m.mappingId === mappingId ? { ...m, courseMode: newMode } : m
+      ));
+    } catch (err) {
+      showToast("Failed to update mode", "error");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleEditBatch = (item) => {
-    setActivePanel(PANEL_BATCH);
-    setEditingBatchMapping(item);
-    // Pre-select the student
-    const student = students.find(s => s.name === item.studentName || s.id === item.studentId);
-    setSelectedStudentBatch(student?.id?.toString() || "");
-    // Pre-select the batch
-    const batch = batches.find(b => b.batchName === item.batchName);
-    setSelectedBatch(batch?.id?.toString() || "");
-    setError("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  /* ── Utility ── */
+  const getEnrollments = (studentId) => courseMappings.filter(m => m.studentId === studentId);
+  const getBatches = (studentId) => batchMappings.filter(m => m.studentId === studentId);
 
-  const resetCourseForm = () => {
-    setSelectedStudentCourse("");
-    setSelectedCourse("");
-    setEditingCourseMapping(null);
-    setError("");
-  };
-
-  const resetBatchForm = () => {
-    setSelectedStudentBatch("");
-    setSelectedBatch("");
-    setEditingBatchMapping(null);
-    setError("");
-  };
-
-  /* ── Derived / merged list ── */
-  const mergedAssignments = batchMappings.map(batch => {
-    const course = courseMappings.find(c => c.studentId === batch.studentId);
-    return { ...batch, courseName: course ? course.courseName : "Not Enrolled" };
+  /* ── Filtering Logic ── */
+  const filteredStudents = students.filter(s => {
+    const matchesSearch = 
+      s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.studentId || s.portalId)?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === "ALL" || s.status?.name === statusFilter || s.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
   });
 
-  const filteredList = mergedAssignments.filter(item =>
-    `${item.studentName} ${item.courseName} ${item.batchName}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
-
-  const totalPages   = Math.max(1, Math.ceil(filteredList.length / PAGE_SIZE));
-  const pagedList    = filteredList.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
-
-  /* stats */
-  const enrolledCount = courseMappings.length;
-  const batchCount    = batchMappings.length;
+  const totalPages = Math.ceil(filteredStudents.length / PAGE_SIZE);
+  const pagedList = filteredStudents.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
-    <div className="ms-page">
+    <div className="adm-hub">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`adm-toast adm-toast--${toast.type}`}>
+          {toast.type === "success" ? <FaCheckCircle /> : <FaTimesCircle />}
+          <span>{toast.msg}</span>
+        </div>
+      )}
 
-      {/* ══════════════ PAGE HEADER ══════════════ */}
-      <div className="ms-page-header">
-        <div className="ms-page-header__left">
-          <div className="ms-page-header__icon">🎓</div>
-          <div>
-            <h1 className="ms-page-header__title">Student Management</h1>
-            <p className="ms-page-header__sub">Enroll students in courses and assign them to batches</p>
+      {/* Header Section */}
+      <div className="adm-hub__header">
+        <div className="hub-info">
+          <h1 className="hub-title">Student Management Hub</h1>
+          <p className="hub-subtitle">Centralized controller for student profiles, modes, and academic status.</p>
+        </div>
+        <div className="hub-actions">
+          <Link to="/admin/student-allotment" className="hub-link-btn">
+            🔗 Manage Allotments
+          </Link>
+          <Link to="/admin/create-user" className="hub-primary-btn">
+             Provision Student
+          </Link>
+        </div>
+      </div>
+
+      {/* Stats Bar */}
+      <div className="hub-stats">
+        <div className="stat-card">
+          <div className="stat-icon stat-icon--blue"><FaUserGraduate /></div>
+          <div className="stat-content">
+            <span className="stat-label">Total Students</span>
+            <span className="stat-value">{students.length}</span>
           </div>
         </div>
-        <div className="ms-page-header__stats">
-          <div className="ms-stat-pill ms-stat-pill--blue">
-            <span className="ms-stat-pill__num">{students.length}</span>
-            <span className="ms-stat-pill__label">Students</span>
+        <div className="stat-card">
+          <div className="stat-icon stat-icon--green"><FaGlobe /></div>
+          <div className="stat-content">
+            <span className="stat-label">Mode Sync</span>
+            <span className="stat-value">{courseMappings.length} Active</span>
           </div>
-          <div className="ms-stat-pill ms-stat-pill--green">
-            <span className="ms-stat-pill__num">{enrolledCount}</span>
-            <span className="ms-stat-pill__label">Enrolled</span>
-          </div>
-          <div className="ms-stat-pill ms-stat-pill--purple">
-            <span className="ms-stat-pill__num">{batchCount}</span>
-            <span className="ms-stat-pill__label">Batches</span>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon stat-icon--purple"><FaFilter /></div>
+          <div className="stat-content">
+            <span className="stat-label">Mapped Records</span>
+            <span className="stat-value">{batchMappings.length} Batches</span>
           </div>
         </div>
       </div>
 
-      <div className="ms-layout">
-
-        {/* ════ LEFT — FORM PANEL ════ */}
-        <div className="ms-form-panel">
-
-          {/* Panel switcher tabs */}
-          <div className="ms-panel-tabs">
-            <button
-              className={`ms-panel-tab ${activePanel === PANEL_COURSE ? "ms-panel-tab--active" : ""}`}
-              onClick={() => { setActivePanel(PANEL_COURSE); resetCourseForm(); resetBatchForm(); }}
-            >
-              <FaBookOpen /> Course Enrollment
-            </button>
-            <button
-              className={`ms-panel-tab ${activePanel === PANEL_BATCH ? "ms-panel-tab--active" : ""}`}
-              onClick={() => { setActivePanel(PANEL_BATCH); resetCourseForm(); resetBatchForm(); }}
-            >
-              <FaLayerGroup /> Batch Allotment
-            </button>
-          </div>
-
-          {/* Alerts */}
-          {message && (
-            <div className="ms-alert ms-alert--success">
-              <FaCheckCircle /><span>{message}</span>
-            </div>
-          )}
-          {error && (
-            <div className="ms-alert ms-alert--error">
-              <FaInfoCircle /><span>{error}</span>
-            </div>
-          )}
-
-          {/* ── COURSE PANEL ── */}
-          {activePanel === PANEL_COURSE && (
-            <div className="ms-section">
-              <div className="ms-section__head">
-                <div className="ms-section__icon">📘</div>
-                <div>
-                  <h3 className="ms-section__title">
-                    {editingCourseMapping ? "Update Course Enrollment" : "Enroll in Course"}
-                  </h3>
-                  <p className="ms-section__sub">
-                    {editingCourseMapping
-                      ? `Editing enrollment for ${editingCourseMapping.studentName}`
-                      : "Link a student to a course"}
-                  </p>
-                </div>
-                {editingCourseMapping && (
-                  <button className="ms-cancel-edit" onClick={resetCourseForm}>
-                    <FaTimes />
-                  </button>
-                )}
-              </div>
-
-              <div className="ms-field">
-                <label className="ms-label"><FaUserGraduate className="ms-label__icon" />Select Student</label>
-                <div className="ms-select-wrap">
-                  <select
-                    className="ms-select"
-                    value={selectedStudentCourse}
-                    onChange={e => { setSelectedStudentCourse(e.target.value); setError(""); }}
-                  >
-                    <option value="">— Choose Student —</option>
-                    {students.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.studentId || s.email})</option>
-                    ))}
-                  </select>
-                  <span className="ms-select-arrow">▾</span>
-                </div>
-              </div>
-
-              <div className="ms-field">
-                <label className="ms-label"><FaBookOpen className="ms-label__icon" />Select Course</label>
-                <div className="ms-select-wrap">
-                  <select
-                    className="ms-select"
-                    value={selectedCourse}
-                    onChange={e => { setSelectedCourse(e.target.value); setError(""); }}
-                  >
-                    <option value="">— Choose Course —</option>
-                    {courses.map(c => (
-                      <option key={c.id} value={c.id}>{c.courseName}</option>
-                    ))}
-                  </select>
-                  <span className="ms-select-arrow">▾</span>
-                </div>
-              </div>
-
-              <div className="ms-form-actions">
-                <button className="ms-btn-primary" onClick={handleCourseSubmit} disabled={loading}>
-                  {loading
-                    ? <><span className="ms-spinner" /> Saving…</>
-                    : <><FaLink /> {editingCourseMapping ? "Update Enrollment" : "Link Course"}</>}
-                </button>
-                {editingCourseMapping && (
-                  <button className="ms-btn-cancel" onClick={resetCourseForm}>✕ Cancel</button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── BATCH PANEL ── */}
-          {activePanel === PANEL_BATCH && (
-            <div className="ms-section">
-              <div className="ms-section__head">
-                <div className="ms-section__icon">🗂️</div>
-                <div>
-                  <h3 className="ms-section__title">
-                    {editingBatchMapping ? "Update Batch Assignment" : "Assign to Batch"}
-                  </h3>
-                  <p className="ms-section__sub">
-                    {editingBatchMapping
-                      ? `Editing batch for ${editingBatchMapping.studentName}`
-                      : "Allot a student to an active batch"}
-                  </p>
-                </div>
-                {editingBatchMapping && (
-                  <button className="ms-cancel-edit" onClick={resetBatchForm}>
-                    <FaTimes />
-                  </button>
-                )}
-              </div>
-
-              <div className="ms-field">
-                <label className="ms-label"><FaUserGraduate className="ms-label__icon" />Select Student</label>
-                <div className="ms-select-wrap">
-                  <select
-                    className="ms-select"
-                    value={selectedStudentBatch}
-                    onChange={e => { setSelectedStudentBatch(e.target.value); setError(""); }}
-                  >
-                    <option value="">— Choose Student —</option>
-                    {students.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.studentId || s.email})</option>
-                    ))}
-                  </select>
-                  <span className="ms-select-arrow">▾</span>
-                </div>
-              </div>
-
-              <div className="ms-field">
-                <label className="ms-label"><FaLayerGroup className="ms-label__icon" />Select Active Batch</label>
-                <div className="ms-select-wrap">
-                  <select
-                    className="ms-select"
-                    value={selectedBatch}
-                    onChange={e => { setSelectedBatch(e.target.value); setError(""); }}
-                  >
-                    <option value="">— Select Batch —</option>
-                    {batches.map(b => (
-                      <option key={b.id} value={b.id}>{b.batchName}</option>
-                    ))}
-                  </select>
-                  <span className="ms-select-arrow">▾</span>
-                </div>
-              </div>
-
-              <div className="ms-form-actions">
-                <button
-                  className="ms-btn-primary ms-btn-primary--navy"
-                  onClick={handleBatchSubmit}
-                  disabled={!selectedBatch || loading}
-                >
-                  {loading
-                    ? <><span className="ms-spinner" /> Saving…</>
-                    : <><FaLayerGroup /> {editingBatchMapping ? "Update Batch" : "Assign Batch"}</>}
-                </button>
-                {editingBatchMapping && (
-                  <button className="ms-btn-cancel" onClick={resetBatchForm}>✕ Cancel</button>
-                )}
-              </div>
-            </div>
-          )}
+      {/* Control Bar */}
+      <div className="hub-controls">
+        <div className="search-box">
+          <FaSearch className="search-icon" />
+          <input 
+            type="text" 
+            placeholder="Search by name, email or ID..." 
+            value={searchTerm}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+          />
         </div>
-
-        {/* ════ RIGHT — LIST PANEL ════ */}
-        <div className="ms-list-panel">
-
-          {/* List header */}
-          <div className="ms-list-header">
-            <div className="ms-list-header__left">
-              <h3 className="ms-list-title">Current Assignments</h3>
-              <span className="ms-list-count">
-                {filteredList.length} record{filteredList.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            <div className="ms-search">
-              <FaSearch className="ms-search__icon" />
-              <input
-                className="ms-search__input"
-                type="text"
-                placeholder="Search student, course, batch…"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-              {searchTerm && (
-                <button className="ms-search__clear" onClick={() => setSearchTerm("")}>✕</button>
-              )}
-            </div>
+        <div className="filter-group">
+          <div className="filter-item">
+            <FaFilter className="filter-icon" />
+            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}>
+              <option value="ALL">All Status</option>
+              <option value="ACTIVE">Active Only</option>
+              <option value="INACTIVE">Inactive Only</option>
+            </select>
           </div>
+          <button className="hub-refresh-btn" onClick={fetchData} title="Refresh Data">
+            <FaSyncAlt className={loading ? "spin" : ""} />
+          </button>
+        </div>
+      </div>
 
-          {/* ── PAGINATION — above cards ── */}
-          {totalPages > 1 && (
-            <div className="ms-pagination">
-              <button
-                className="ms-page-btn ms-page-btn--nav"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => p - 1)}
-              >‹ Prev</button>
+      {/* Main Data Table */}
+      <div className="hub-table-container">
+        <table className="hub-table">
+          <thead>
+            <tr>
+              <th>STUDENT</th>
+              <th>CONTACT DETAILS</th>
+              <th>ENROLLMENTS</th>
+              <th>BATCH MAPPINGS</th>
+              <th>SYSTEM STATUS</th>
+              <th>ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              [...Array(5)].map((_, i) => (
+                <tr key={i} className="skeleton-row">
+                  <td colSpan="6"><div className="skeleton-line" /></td>
+                </tr>
+              ))
+            ) : pagedList.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="empty-cell">
+                  <div className="empty-state">
+                    <FaUserSlash />
+                    <p>No students found matching your filters.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : pagedList.map((stu) => {
+              const enrollments = getEnrollments(stu.id);
+              const batches = getBatches(stu.id);
+              const statusStr = (stu.status?.name || stu.status || "ACTIVE").toUpperCase();
 
-              <div className="ms-page-numbers">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => {
-                  if (
-                    p === 1 || p === totalPages ||
-                    (p >= currentPage - 1 && p <= currentPage + 1)
-                  ) {
-                    return (
-                      <button
-                        key={p}
-                        className={`ms-page-btn ${currentPage === p ? "ms-page-btn--active" : ""}`}
-                        onClick={() => setCurrentPage(p)}
-                      >{p}</button>
-                    );
-                  }
-                  if (p === 2 && currentPage > 3)
-                    return <span key="e1" className="ms-page-ellipsis">…</span>;
-                  if (p === totalPages - 1 && currentPage < totalPages - 2)
-                    return <span key="e2" className="ms-page-ellipsis">…</span>;
-                  return null;
-                })}
-              </div>
-
-              <button
-                className="ms-page-btn ms-page-btn--nav"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(p => p + 1)}
-              >Next ›</button>
-
-              <span className="ms-page-info">
-                {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredList.length)}
-                <span className="ms-page-info__sep">·</span>
-                {filteredList.length} total
-              </span>
-            </div>
-          )}
-
-          {/* Assignment cards */}
-          <div className="ms-scroll-area">
-            {pagedList.length === 0 ? (
-              <div className="ms-empty">
-                <div className="ms-empty__icon">📭</div>
-                <p className="ms-empty__text">
-                  {searchTerm
-                    ? `No results for "${searchTerm}"`
-                    : "No assignments found."}
-                </p>
-              </div>
-            ) : (
-              pagedList.map((item, idx) => {
-                const scheme = AVATAR_COLORS[idx % AVATAR_COLORS.length];
-                const statusLower = (item.batchStatus || "active").toLowerCase();
-                const notEnrolled = item.courseName === "Not Enrolled";
-
-                return (
-                  <div
-                    key={item.mappingId}
-                    className="ms-card"
-                    style={{ animationDelay: `${idx * 0.05}s` }}
-                  >
-                    {/* Left accent stripe */}
-                    <div className="ms-card__stripe" />
-
-                    <div className="ms-card__body">
-                      {/* Top: avatar + name + status badge */}
-                      <div className="ms-card__top">
-                        <div
-                          className="ms-avatar"
-                          style={{ background: scheme.bg, color: scheme.color }}
-                        >
-                          {item.studentName?.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="ms-card__identity">
-                          <h4 className="ms-card__name">{item.studentName}</h4>
-                          <span className="ms-card__email">{item.formattedId || item.studentEmail}</span>
-                        </div>
-                        <span className={`ms-status-badge ms-status-badge--${statusLower}`}>
-                          {statusLower === "ongoing" || statusLower === "active"
-                            ? "● Active"
-                            : statusLower === "completed"
-                            ? "✓ Completed"
-                            : item.batchStatus}
-                        </span>
+              return (
+                <tr key={stu.id}>
+                  <td data-label="STUDENT">
+                    <div className="stu-cell">
+                      <div className="avatar-box">
+                        {stu.name?.charAt(0).toUpperCase()}
                       </div>
-
-                      {/* Detail chips */}
-                      <div className="ms-card__details">
-                        <div className="ms-detail-chip">
-                          <FaBookOpen className="ms-detail-chip__icon ms-detail-chip__icon--blue" />
-                          <div>
-                            <span className="ms-detail-chip__label">Course</span>
-                            <span className={`ms-detail-chip__val ${notEnrolled ? "ms-detail-chip__val--warn" : ""}`}>
-                              {item.courseName}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="ms-detail-chip">
-                          <FaLayerGroup className="ms-detail-chip__icon ms-detail-chip__icon--purple" />
-                          <div>
-                            <span className="ms-detail-chip__label">Batch</span>
-                            <span className="ms-detail-chip__val">{item.batchName}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="ms-card__actions">
-                        <button
-                          className="ms-action-btn ms-action-btn--course"
-                          title="Edit course enrollment"
-                          onClick={() => handleEditCourse(item)}
-                        >
-                          <FaEdit /> Edit Course
-                        </button>
-                        <button
-                          className="ms-action-btn ms-action-btn--batch"
-                          title="Edit batch assignment"
-                          onClick={() => handleEditBatch(item)}
-                        >
-                          <FaEdit /> Edit Batch
-                        </button>
+                      <div className="stu-info">
+                        <span className="stu-name">{stu.name}</span>
+                        <span className="stu-id">{stu.studentId || stu.portalId || "N/A"}</span>
                       </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-        </div>
+                  </td>
+                  <td data-label="CONTACT">
+                    <div className="contact-cell">
+                      <div className="contact-item"><FaEnvelope /> {stu.email}</div>
+                      <div className="contact-item"><FaPhoneAlt /> {stu.phone || "No Contact"}</div>
+                    </div>
+                  </td>
+                  <td data-label="ENROLLMENTS">
+                    <div className="enrollment-stack">
+                      {enrollments.length === 0 ? (
+                        <span className="no-data">Not Enrolled</span>
+                      ) : (
+                        enrollments.map(enr => (
+                          <div key={enr.mappingId} className="enrollment-item">
+                            <span className="course-name">{enr.courseName}</span>
+                            <select 
+                              className={`mode-select mode-select--${enr.courseMode?.toLowerCase()}`}
+                              value={enr.courseMode || "OFFLINE"}
+                              onChange={(evt) => handleChangeMode(enr.mappingId, evt.target.value)}
+                            >
+                              {MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </td>
+                  <td data-label="BATCHES">
+                    <div className="batch-chips">
+                      {batches.length === 0 ? (
+                        <span className="no-data">No Batches</span>
+                      ) : (
+                        batches.map(b => (
+                          <span key={b.mappingId} className="batch-chip">
+                            {b.batchName}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </td>
+                  <td data-label="STATUS">
+                     <span className={`status-pill status-pill--${statusStr.toLowerCase()}`}>
+                       <FaCircle /> {statusStr}
+                     </span>
+                  </td>
+                  <td data-label="ACTIONS">
+                    <div className="hub-action-btns">
+                      <button 
+                        className="action-btn action-btn--edit" 
+                        title="Edit Student Profile"
+                        onClick={() => {
+                          setEditingStudent({...stu, status: statusStr});
+                          setIsEditModalOpen(true);
+                        }}
+                      >
+                        <FaUserEdit />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="hub-pagination">
+          <button 
+            className="pg-btn" 
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(prev => prev - 1)}
+          >
+            <FaArrowLeft />
+          </button>
+          <div className="pg-numbers">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
+              <button 
+                key={num} 
+                className={`pg-num ${currentPage === num ? "active" : ""}`}
+                onClick={() => setCurrentPage(num)}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
+          <button 
+            className="pg-btn" 
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(prev => prev + 1)}
+          >
+            <FaArrowRight />
+          </button>
+        </div>
+      )}
+
+      {/* EDIT MODAL */}
+      {isEditModalOpen && editingStudent && (
+        <div className="adm-modal-overlay">
+          <div className="adm-modal">
+            <div className="modal-header">
+              <h2><FaUserEdit /> Edit Student Profile</h2>
+              <button className="modal-close" onClick={() => setIsEditModalOpen(false)}><FaTimesCircle /></button>
+            </div>
+            <form onSubmit={handleUpdateProfile}>
+              <div className="modal-body">
+                <div className="m-field">
+                  <label>Full Name</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={editingStudent.name}
+                    onChange={(e) => setEditingStudent({...editingStudent, name: e.target.value})}
+                  />
+                </div>
+                <div className="m-field">
+                  <label>Email Address</label>
+                  <input 
+                    type="email" 
+                    required 
+                    value={editingStudent.email}
+                    onChange={(e) => setEditingStudent({...editingStudent, email: e.target.value})}
+                  />
+                </div>
+                <div className="m-field">
+                  <label>Phone Number</label>
+                  <input 
+                    type="text" 
+                    value={editingStudent.phone || ""}
+                    onChange={(e) => setEditingStudent({...editingStudent, phone: e.target.value})}
+                  />
+                </div>
+                <div className="m-field">
+                  <label>Account Status</label>
+                  <select 
+                    value={editingStudent.status}
+                    onChange={(e) => setEditingStudent({...editingStudent, status: e.target.value})}
+                  >
+                    {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="m-warning">
+                   ⚠️ Password reset is disabled in this module for security.
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="m-btn m-btn--cancel" onClick={() => setIsEditModalOpen(false)}>Cancel</button>
+                <button type="submit" className="m-btn m-btn--save" disabled={actionLoading}>
+                  {actionLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

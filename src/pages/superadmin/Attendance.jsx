@@ -50,7 +50,7 @@ function Attendance() {
                 </div>
 
                 <div className="sl-table-card">
-                    <table className="sl-table">
+                    <table className="sl-table responsive-card-table">
                         <thead>
                             <tr>
                                 <th>Unit ID</th>
@@ -63,11 +63,11 @@ function Attendance() {
                         <tbody>
                             {attendanceData.map((item) => (
                                 <tr key={item.id}>
-                                    <td>#ST-{item.id}</td>
-                                    <td style={{fontWeight: 700}}>{item.student}</td>
-                                    <td>{item.course}</td>
-                                    <td>{item.percent}%</td>
-                                    <td>
+                                    <td data-label="Unit ID">#ST-{item.id}</td>
+                                    <td style={{fontWeight: 700}} data-label="Student Identity">{item.student}</td>
+                                    <td data-label="Academic Stream">{item.course}</td>
+                                    <td data-label="Temporal Weight %">{item.percent}%</td>
+                                    <td data-label="Heuristic Status">
                                         <span className={`sl-status-pill ${getStatusClass(item.percent)}`}>
                                             {item.percent >= 75 ? "Optimal" : "Sub-Nominal"}
                                         </span>

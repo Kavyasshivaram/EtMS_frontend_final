@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axiosConfig";
 import "./StudentSchedule.css";
-
-const API_BASE = "http://localhost:8080/api/student";
 
 function StudentSchedule() {
   const user = JSON.parse(localStorage.getItem("user"));
@@ -15,11 +13,11 @@ function StudentSchedule() {
     async function fetchData() {
       try {
         setLoading(true);
-        const batchesRes = await axios.get(`${API_BASE}/my-batches`, { withCredentials: true });
+        const batchesRes = await api.get("/student/my-batches");
         setBatches(batchesRes.data);
 
         const batchIds = batchesRes.data.map(batch => batch.batchId);
-        const scheduleRes = await axios.get(`${API_BASE}/my-schedule`, { withCredentials: true });
+        const scheduleRes = await api.get("/student/my-schedule");
         const filteredSchedule = scheduleRes.data.filter(s => batchIds.includes(s.batchId));
         setSchedule(filteredSchedule);
       } catch (error) {
@@ -76,7 +74,7 @@ function StudentSchedule() {
             <p className="no-schedule">No classes scheduled for this batch.</p>
           ) : (
             <div className="schedule-table-container">
-              <table className="schedule-table">
+              <table className="schedule-table responsive-card-table">
                 <thead>
                   <tr>
                     <th>Date</th>
@@ -90,10 +88,10 @@ function StudentSchedule() {
                     .sort((a, b) => new Date(a.classDate) - new Date(b.classDate))
                     .map((cls, idx) => (
                       <tr key={idx}>
-                        <td>{cls.classDate || "N/A"}</td>
-                        <td>{cls.startTime || "N/A"}</td>
-                        <td>{cls.endTime || "N/A"}</td>
-                        <td>{cls.trainerName || batch.trainerName || "N/A"}</td>
+                        <td data-label="Date">{cls.classDate || "N/A"}</td>
+                        <td data-label="Start">{cls.startTime || "N/A"}</td>
+                        <td data-label="End">{cls.endTime || "N/A"}</td>
+                        <td data-label="Trainer">{cls.trainerName || batch.trainerName || "N/A"}</td>
                       </tr>
                     ))}
                 </tbody>

@@ -344,7 +344,22 @@ function TrainerCourses() {
                       {student.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="tc-student-info">
-                      <h4 className="tc-student-name">{student.name}</h4>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+                        <h4 className="tc-student-name" style={{ margin: 0 }}>{student.name}</h4>
+                        <span style={{ 
+                          fontSize: '0.65rem', 
+                          padding: '0.25rem 0.6rem', 
+                          borderRadius: '1rem', 
+                          fontWeight: '800',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.025em',
+                          backgroundColor: (student.courseMode || student.coursemode || student.COURSEMODE) === 'ONLINE' ? '#ecfdf5' : ((student.courseMode || student.coursemode || student.COURSEMODE) === 'HYBRID' ? '#f5f3ff' : '#eff6ff'),
+                          color: (student.courseMode || student.coursemode || student.COURSEMODE) === 'ONLINE' ? '#059669' : ((student.courseMode || student.coursemode || student.COURSEMODE) === 'HYBRID' ? '#7c3aed' : '#2563eb'),
+                          border: `1px solid ${(student.courseMode || student.coursemode || student.COURSEMODE) === 'ONLINE' ? '#a7f3d0' : ((student.courseMode || student.coursemode || student.COURSEMODE) === 'HYBRID' ? '#ddd6fe' : '#bfdbfe')}`
+                        }}>
+                          {student.courseMode || student.coursemode || student.COURSEMODE || "OFFLINE"}
+                        </span>
+                      </div>
                       <a href={`mailto:${student.email}`} className="tc-student-email">
                         <FaEnvelope />
                         <span>{student.email}</span>

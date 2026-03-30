@@ -1,13 +1,27 @@
+import { useState, useEffect } from "react";
+import api from "../../api/axiosConfig";
 import "./SuperAdminLists.css";
-import { FaLayerGroup, FaPlus } from "react-icons/fa6";
+import { FaLayerGroup, FaPlus, FaSync } from "react-icons/fa6";
 
 function Batches() {
+  const [batches, setBatches] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const batches = [
-    { id: 1, name: "Batch Alpha", course: "Full Stack Development", trainer: "Rahul Sharma", schedule: "Mon-Fri 10AM - 12PM" },
-    { id: 2, name: "Batch Beta", course: "Data Science & AI", trainer: "Priya Verma", schedule: "Tue-Thu 02PM - 04PM" },
-    { id: 3, name: "Batch Gamma", course: "UI/UX Design Systems", trainer: "Arjun Reddy", schedule: "Sat-Sun 11AM - 01PM" },
-  ];
+  useEffect(() => {
+    fetchBatches();
+  }, []);
+
+  const fetchBatches = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/admin/batches");
+      setBatches(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch batches:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="sa-page">
@@ -40,13 +54,13 @@ function Batches() {
                         <h1>Cohort Management</h1>
                         <p>Detailed overview of active training batches and scheduling</p>
                     </div>
-                    <button className="sl-btn-primary">
-                        <FaPlus /> Initialize Batch
+                    <button className="sl-btn-primary" onClick={fetchBatches}>
+                        <FaSync /> Refresh
                     </button>
                 </div>
 
                 <div className="sl-table-card">
-                    <table className="sl-table">
+                    <table className="sl-table responsive-card-table">
                         <thead>
                             <tr>
                                 <th>Batch ID</th>
@@ -57,13 +71,29 @@ function Batches() {
                             </tr>
                         </thead>
                         <tbody>
-                            {batches.map((batch) => (
+                            {loading ? (
+                                <tr><td colSpan="5" style={{textAlign: 'center'}}>Syncing batches...</td></tr>
+                            ) : batches.length === 0 ? (
+                                <tr><td colSpan="5" style={{textAlign: 'center'}}>No batches found in system.</td></tr>
+                            ) : batches.map((batch) => (
                                 <tr key={batch.id}>
-                                    <td>#BT-{batch.id}</td>
-                                    <td style={{fontWeight: 700}}>{batch.name}</td>
-                                    <td>{batch.course}</td>
-                                    <td>{batch.trainer}</td>
-                                    <td style={{fontSize: '0.85rem'}}>{batch.schedule}</td>
+                                    <td data-label="Batch ID">
+                                        <code style={{
+                                            background: '#f1f5f9',
+                                            padding: '2px 6px',
+                                            borderRadius: '4px',
+                                            color: '#2563eb',
+                                            fontWeight: 'bold'
+                                        }}>
+                                            {batch.batchId || `BT-${batch.id}`}
+                                        </code>
+                                    </td>
+                                    <td style={{fontWeight: 700}} data-label="Cohort Name">{batch.batchName}</td>
+                                    <td data-label="Academic Stream">{batch.course?.courseName || "General"}</td>
+                                    <td data-label="Assigned Lead">{batch.trainer?.name || "Unassigned"}</td>
+                                    <td style={{fontSize: '0.85rem'}} data-label="Temporal Slot">
+                                        {batch.startDate} to {batch.endDate}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

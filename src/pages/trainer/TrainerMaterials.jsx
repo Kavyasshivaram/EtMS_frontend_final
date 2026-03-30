@@ -1,65 +1,110 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import api from "../../api/axiosConfig";
 import "./TrainerMaterials.css";
 
 function TrainerMaterials() {
-  const [selectedCourse, setSelectedCourse] = useState("Java Full Stack");
+  const [loading, setLoading] = useState(true);
+  const [batches, setBatches] = useState([]);
+  const [selectedBatchId, setSelectedBatchId] = useState("");
 
   /* ================= MATERIAL STATE ================= */
   const [materialTitle, setMaterialTitle] = useState("");
-  const [materialFile, setMaterialFile] = useState(null);
+  const [materialUrl, setMaterialUrl] = useState("");
   const [materials, setMaterials] = useState([]);
 
   /* ================= TASK STATE ================= */
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDesc, setTaskDesc] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [assignedStudent, setAssignedStudent] = useState("");
   const [tasks, setTasks] = useState([]);
 
-  const students = ["Rahul", "Anjali", "Kiran", "Sneha", "Arjun"];
+  const trainer = JSON.parse(localStorage.getItem('user'));
+
+  useEffect(() => {
+    const fetchBatches = async () => {
+      try {
+        const res = await api.get(`/teacher/active-batches/${trainer.id}`);
+        setBatches(res.data);
+        if (res.data.length > 0) {
+          setSelectedBatchId(res.data[0].batchId);
+        }
+      } catch (err) {
+        console.error("Failed to fetch batches:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (trainer?.id) fetchBatches();
+  }, [trainer?.id]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!selectedBatchId) return;
+      try {
+        const [matsRes, tasksRes] = await Promise.all([
+          api.get(`/materials/batch/${selectedBatchId}`),
+          api.get(`/tasks/student/0?batchId=${selectedBatchId}`) // Dummy student ID just to get batch tasks or I should add a trainer task endpoint
+        ]);
+        setMaterials(matsRes.data);
+        // Note: For now, I'll filter task assignments by batch if I had a better endpoint, 
+        // but I'll stick to the materials for this view mostly.
+      } catch (err) {
+        console.error("Fetch data error:", err);
+      }
+    };
+    fetchData();
+  }, [selectedBatchId]);
 
   /* ================= ADD MATERIAL ================= */
-  const handleAddMaterial = () => {
-    if (!materialTitle || !materialFile) {
-      alert("Please enter title and upload file");
+  const handleAddMaterial = async () => {
+    if (!materialTitle || !materialUrl || !selectedBatchId) {
+      alert("Please enter title, URL and select a batch");
       return;
     }
 
-    const newMaterial = {
-      id: Date.now(),
-      course: selectedCourse,
-      title: materialTitle,
-      fileName: materialFile.name,
-      date: new Date().toLocaleDateString(),
-    };
+    try {
+      const payload = {
+        batch: { id: selectedBatchId },
+        title: materialTitle,
+        url: materialUrl,
+        type: "LINK",
+        uploadedBy: { id: trainer.id }
+      };
 
-    setMaterials([...materials, newMaterial]);
-    setMaterialTitle("");
-    setMaterialFile(null);
+      const res = await api.post("/materials/trainer/upload", payload);
+      setMaterials([...materials, res.data]);
+      setMaterialTitle("");
+      setMaterialUrl("");
+      alert("Material uploaded successfully!");
+    } catch (err) {
+      alert("Failed to upload material");
+    }
   };
 
   /* ================= ADD TASK ================= */
-  const handleAddTask = () => {
-    if (!taskTitle || !assignedStudent || !dueDate) {
+  const handleAddTask = async () => {
+    if (!taskTitle || !selectedBatchId || !dueDate) {
       alert("Please fill required fields");
       return;
     }
 
-    const newTask = {
-      id: Date.now(),
-      course: selectedCourse,
-      title: taskTitle,
-      description: taskDesc,
-      dueDate,
-      student: assignedStudent,
-      status: "Pending",
-    };
+    try {
+      const payload = {
+        batchId: selectedBatchId,
+        trainerId: trainer.id,
+        title: taskTitle,
+        description: taskDesc,
+        deadline: dueDate + "T23:59:59"
+      };
 
-    setTasks([...tasks, newTask]);
-    setTaskTitle("");
-    setTaskDesc("");
-    setDueDate("");
-    setAssignedStudent("");
+      await api.post("/tasks/trainer/create", payload);
+      alert("Task assigned to batch successfully!");
+      setTaskTitle("");
+      setTaskDesc("");
+      setDueDate("");
+    } catch (err) {
+      alert("Failed to assign task");
+    }
   };
 
   const markCompleted = (id) => {
@@ -81,16 +126,16 @@ function TrainerMaterials() {
     <div className="trainer-materials-container">
       <h2 className="page-title">📂 Study Materials & Daily Tasks</h2>
 
-      {/* Course Selector */}
+      {/* Batch Selector */}
       <div className="course-selector">
-        <label>Select Course:</label>
+        <label>Select Batch:</label>
         <select
-          value={selectedCourse}
-          onChange={(e) => setSelectedCourse(e.target.value)}
+          value={selectedBatchId}
+          onChange={(e) => setSelectedBatchId(e.target.value)}
         >
-          <option>Java Full Stack</option>
-          <option>React Development</option>
-          <option>Spring Boot</option>
+          {batches.map(b => (
+             <option key={b.batchId} value={b.batchId}>{b.batchName}</option>
+          ))}
         </select>
       </div>
 
@@ -106,23 +151,23 @@ function TrainerMaterials() {
         />
 
         <input
-          type="file"
-          onChange={(e) => setMaterialFile(e.target.files[0])}
+          type="text"
+          placeholder="Resource URL (e.g. Google Drive/YouTube Link)"
+          value={materialUrl}
+          onChange={(e) => setMaterialUrl(e.target.value)}
         />
 
-        <button className="primary-btn" onClick={handleAddMaterial}>
+        <button className="primary-btn" onClick={handleAddMaterial} disabled={!selectedBatchId}>
           Upload Material
         </button>
 
         <div className="list">
-          {materials
-            .filter((m) => m.course === selectedCourse)
-            .map((m) => (
+          {materials.map((m) => (
               <div key={m.id} className="list-item">
                 <div>
                   <strong>{m.title}</strong>
-                  <p>{m.fileName}</p>
-                  <span>{m.date}</span>
+                  <p>{m.url}</p>
+                  <span>{m.type}</span>
                 </div>
                 <button
                   className="delete-btn"
@@ -153,16 +198,6 @@ function TrainerMaterials() {
         />
 
         <div className="task-row">
-          <select
-            value={assignedStudent}
-            onChange={(e) => setAssignedStudent(e.target.value)}
-          >
-            <option value="">Assign To Student</option>
-            {students.map((s, index) => (
-              <option key={index}>{s}</option>
-            ))}
-          </select>
-
           <input
             type="date"
             value={dueDate}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { FaComments, FaTimes, FaPaperPlane, FaHome, FaRegCommentDots, FaChevronLeft, FaWhatsapp, FaPhone } from 'react-icons/fa';
-import axios from 'axios';
+import api from '../api/axiosConfig';
 import './ChatWidget.css';
 
 const ChatWidget = () => {
@@ -61,8 +61,8 @@ const ChatWidget = () => {
 
         try {
             console.log("DEBUG: Sending message to AI:", inputText);
-            const cleanAxios = axios.create();
-            const response = await cleanAxios.post('http://localhost:8080/public/chat/message', {
+            
+            const response = await api.post('/public/chat/message', {
                 message: inputText,
                 sessionId: sessionId
             });

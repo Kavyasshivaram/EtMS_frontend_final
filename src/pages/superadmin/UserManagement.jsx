@@ -1,15 +1,19 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../../api/axiosConfig";
 import "./UserManagement.css";
 import "./SuperAdminCommon.css";
-import { FaUserPlus, FaSearch, FaFilter, FaTrafficLight, FaUserShield, FaUserTie, FaUserGraduate, FaUserTag, FaUsers } from "react-icons/fa";
+import { FaUserPlus, FaSearch, FaFilter, FaTrafficLight, FaUserShield, FaUserTie, FaUserGraduate, FaUserTag, FaUsers, FaEye, FaEyeSlash } from "react-icons/fa";
 
 function UserManagement() {
+  const [searchParams] = useSearchParams();
+  const initialStatus = searchParams.get("status") || "ALL";
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
 
   // Edit User State
   const [showEditModal, setShowEditModal] = useState(false);
@@ -22,6 +26,18 @@ function UserManagement() {
     studentId: "" // This maps to portalId in backend update
   });
   const [updating, setUpdating] = useState(false);
+
+  // Delete state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingUser, setDeletingUser] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Nuclear Reset state
+  const [showNuclearModal, setShowNuclearModal] = useState(false);
+  const [isNuking, setIsNuking] = useState(false);
+  
+  // Password Visibility State
+  const [visiblePasswords, setVisiblePasswords] = useState({});
 
   useEffect(() => {
     fetchUsers();
@@ -39,12 +55,29 @@ function UserManagement() {
     }
   };
 
-  const toggleStatus = async (id) => {
+  const toggleStatus = async (user) => {
+    if (user.role.roleName === 'SUPERADMIN') {
+      alert("⚠️ Access Denied: Super Admin accounts cannot be suspended or deactivated.");
+      return;
+    }
     try {
-      await api.patch(`/superadmin/users/toggle-status/${id}`);
+      await api.patch(`/superadmin/users/toggle-status/${user.id}`);
       fetchUsers();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleApproveClick = async (u) => {
+    let overrideId = window.prompt(`Approving ${u.name}.\nTo auto-generate ID, leave blank.\nTo manually assign an ID, enter it below:`);
+    if (overrideId === null) return; // User cancelled prompt
+
+    try {
+      const res = await api.put(`/superadmin/users/approve/${u.id}`, { generatedId: overrideId });
+      alert(res.data.message || "User approved!");
+      fetchUsers();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to approve user.");
     }
   };
 
@@ -74,6 +107,44 @@ function UserManagement() {
     }
   };
 
+  const handleDeleteClick = (user) => {
+    if (user.role.roleName === 'SUPERADMIN') {
+      alert("☢️ System Safety Triggered: Super Admin accounts cannot be deleted. This action is blocked to prevent platform lock-out.");
+      return;
+    }
+    setDeletingUser(user);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingUser) return;
+    setDeleting(true);
+    try {
+      await api.post(`/superadmin/users/delete-permanently/${deletingUser.id}`);
+      setShowDeleteModal(false);
+      setDeletingUser(null);
+      fetchUsers();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to delete user");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleNuclearReset = async () => {
+    setIsNuking(true);
+    try {
+      const res = await api.post("/superadmin/users/nuclear-reset");
+      alert(res.data.message || "Database successfully cleaned!");
+      setShowNuclearModal(false);
+      fetchUsers();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to clean database");
+    } finally {
+      setIsNuking(false);
+    }
+  };
+
   const filteredUsers = users.filter(u => {
     const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) || 
                         u.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -83,6 +154,13 @@ function UserManagement() {
     const matchStatus = statusFilter === "ALL" || u.status === statusFilter;
     return matchSearch && matchRole && matchStatus;
   });
+
+  const togglePasswordVisibility = (userId) => {
+    setVisiblePasswords(prev => ({
+      ...prev,
+      [userId]: !prev[userId]
+    }));
+  };
 
   const getRoleIcon = (roleName) => {
     switch (roleName) {
@@ -97,45 +175,52 @@ function UserManagement() {
 
   return (
     <div className="sa-page">
-      <div className="sa-wrapper um-wrapper-extra">
+      <div className="sa-wrapper um-wrapper-extra um-wrapper-single">
         
-        {/* ── SIDE PANEL ── */}
-        <div className="sa-side-panel">
-          <div className="sa-side-brand">
-            <span className="cu-side-et">Et</span><span className="cu-side-ms">MS</span>
-          </div>
-          <h2 className="sa-side-title">User Directory</h2>
-          <p className="sa-side-desc">
-            Global oversight and lifecycle management for all platform members across every role.
-          </p>
-
-          <div className="um-side-stats">
-            <div className="um-ss-item">
-              <span className="um-ss-val">{users.length}</span>
-              <span className="um-ss-lbl">Total Members</span>
-            </div>
-            <div className="um-ss-divider" />
-            <div className="um-ss-item">
-              <span className="um-ss-val">🟢</span>
-              <span className="um-ss-lbl">Active Synced</span>
-            </div>
-          </div>
-
-          <div className="um-side-illustration">
-            <FaUsers size={120} style={{opacity: 0.15}} />
-          </div>
-        </div>
-
         {/* ── CONTENT AREA ── */}
         <div className="um-main-panel">
+          
+          <div className="um-stats-rectangle">
+            <div className="um-stat-card">
+              <div className="um-stat-icon"><FaUsers /></div>
+              <div className="um-stat-info">
+                <span className="um-stat-val">{users.length}</span>
+                <span className="um-stat-lbl">Registered Members</span>
+              </div>
+            </div>
+            <div className="um-stat-divider" />
+            <div className="um-stat-card">
+              <div className="um-stat-icon" style={{color: 'var(--sa-green)'}}>🟢</div>
+              <div className="um-stat-info">
+                <span className="um-stat-val">Active</span>
+                <span className="um-stat-lbl">Real-time Syncing</span>
+              </div>
+            </div>
+            <div className="um-stat-divider" />
+            <div className="um-stat-card">
+              <div className="um-stat-info">
+                <span className="um-stat-val" style={{fontSize: '1rem'}}>Global Overview</span>
+                <span className="um-stat-lbl">Lifecycle Management</span>
+              </div>
+            </div>
+          </div>
           <div className="um-header">
             <div className="um-header__left">
               <h1>Universal Directory</h1>
               <p>Managing {filteredUsers.length} members matching current filters</p>
             </div>
-            <button className="um-btn--primary" onClick={() => window.location.href = "/#/superadmin/create-user"}>
-              <FaUserPlus /> Provision User
-            </button>
+            <div style={{display: 'flex', gap: '12px'}}>
+              <button 
+                className="um-btn--primary" 
+                style={{background: '#dc2626', borderColor: '#b91c1c'}}
+                onClick={() => setShowNuclearModal(true)}
+              >
+                ⚠️ Nuclear Reset DB
+              </button>
+              <button className="um-btn--primary" onClick={() => window.location.href = "/#/superadmin/create-user"}>
+                <FaUserPlus /> Provision User
+              </button>
+            </div>
           </div>
 
           <div className="um-controls">
@@ -166,6 +251,7 @@ function UserManagement() {
                   <option value="ALL">All Status</option>
                   <option value="ACTIVE">Active</option>
                   <option value="INACTIVE">Inactive</option>
+                  <option value="PENDING">Pending Approval</option>
                 </select>
               </div>
             </div>
@@ -183,6 +269,7 @@ function UserManagement() {
                   <tr>
                     <th>Member</th>
                     <th>Role</th>
+                    <th>Password</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -190,7 +277,7 @@ function UserManagement() {
                 <tbody>
                   {filteredUsers.map(u => (
                     <tr key={u.id}>
-                      <td>
+                      <td data-label="Member">
                         <div className="um-member-cell">
                           <div className="um-avatar">{u.name.charAt(0)}</div>
                           <div className="um-member-info">
@@ -214,31 +301,67 @@ function UserManagement() {
                           </div>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Role">
                         <div className="um-role-badge">
                           {getRoleIcon(u.role.roleName)}
                           <span>{u.role.roleName}</span>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Password">
+                        <div className="um-password-cell">
+                          <span className="um-pass-text">
+                            {visiblePasswords[u.id] ? (u.plainPassword || 'N/A') : '••••••••'}
+                          </span>
+                          <button 
+                            className="um-pass-toggle"
+                            onClick={() => togglePasswordVisibility(u.id)}
+                            title={visiblePasswords[u.id] ? "Hide Password" : "Show Password"}
+                          >
+                            {visiblePasswords[u.id] ? <FaEyeSlash /> : <FaEye />}
+                          </button>
+                        </div>
+                      </td>
+                      <td data-label="Status">
                         <span className={`um-status-pill um-status--${u.status.toLowerCase()}`}>
                           ● {u.status}
                         </span>
                       </td>
-                      <td>
-                         <button 
-                          className="um-action-pill edit"
-                          onClick={() => handleEditClick(u)}
-                          style={{marginRight: '8px', background: '#f59e0b', color: 'white', border: 'none'}}
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          className={`um-action-pill ${u.status === 'ACTIVE' ? 'suspend' : 'reinstate'}`}
-                          onClick={() => toggleStatus(u.id)}
-                        >
-                          {u.status === 'ACTIVE' ? 'Suspend' : 'Reinstate'}
-                        </button>
+                      <td data-label="Actions">
+                        <div className="um-action-group">
+                          {u.status === 'PENDING' && (
+                            <button
+                               className="um-action-pill approve"
+                               onClick={() => handleApproveClick(u)}
+                               style={{background: '#16a34a', color: 'white', border: 'none'}}
+                            >
+                               ✅ Approve
+                            </button>
+                          )}
+                          {u.status !== 'PENDING' && (
+                            <>
+                              <button 
+                                className="um-action-pill edit"
+                                onClick={() => handleEditClick(u)}
+                                style={{background: '#f59e0b', color: 'white', border: 'none'}}
+                              >
+                                Edit
+                              </button>
+                              <button 
+                                className={`um-action-pill ${u.status === 'ACTIVE' ? 'suspend' : 'reinstate'}`}
+                                onClick={() => toggleStatus(u)}
+                              >
+                                {u.status === 'ACTIVE' ? 'Suspend' : 'Reinstate'}
+                              </button>
+                              <button
+                                className="um-action-pill delete"
+                                onClick={() => handleDeleteClick(u)}
+                                style={{background: '#dc2626', color: 'white', border: 'none'}}
+                              >
+                                🗑 Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -335,6 +458,105 @@ function UserManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── DELETE CONFIRMATION MODAL ── */}
+      {showDeleteModal && deletingUser && (
+        <div className="um-modal-overlay">
+          <div className="um-modal" style={{maxWidth: '420px'}}>
+            <div className="um-modal-header" style={{background: 'linear-gradient(135deg,#dc2626,#b91c1c)'}}>
+              <h2 style={{color:'white'}}>⚠️ Permanent Delete</h2>
+              <button className="um-modal-close" style={{color:'white'}} onClick={() => setShowDeleteModal(false)}>&times;</button>
+            </div>
+            <div style={{padding: '28px 28px 8px', textAlign:'center'}}>
+              <div style={{fontSize:'3rem', marginBottom:'12px'}}>🗑️</div>
+              <p style={{fontSize:'1rem', color:'#1e293b', marginBottom:'8px'}}>
+                You are about to <strong style={{color:'#dc2626'}}>permanently delete</strong> this user from the database:
+              </p>
+              <div style={{
+                background:'#fff1f2', border:'1px solid #fecaca',
+                borderRadius:'10px', padding:'12px 16px', margin:'16px 0'
+              }}>
+                <strong style={{fontSize:'1rem', color:'#dc2626'}}>{deletingUser.name}</strong>
+                <br />
+                <span style={{fontSize:'0.85rem', color:'#64748b'}}>{deletingUser.email}</span>
+                {(deletingUser.portalId || deletingUser.studentId) && (
+                  <><br /><code style={{fontSize:'0.8rem', color:'#dc2626'}}>{deletingUser.portalId || deletingUser.studentId}</code></>
+                )}
+              </div>
+              <p style={{fontSize:'0.85rem', color:'#ef4444', fontWeight:'600'}}>
+                ⚠️ This action cannot be undone!
+              </p>
+            </div>
+            <div className="um-modal-footer" style={{padding:'16px 28px 24px'}}>
+              <button
+                className="um-modal-cancel"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                className="um-modal-save"
+                style={{background:'#dc2626', border:'none'}}
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+              >
+                {deleting ? '🗑 Deleting...' : '🗑 Yes, Delete Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── NUCLEAR RESET MODAL ── */}
+      {showNuclearModal && (
+        <div className="um-modal-overlay">
+          <div className="um-modal" style={{maxWidth: '480px'}}>
+            <div className="um-modal-header" style={{background: 'linear-gradient(135deg,#000000,#dc2626)'}}>
+              <h2 style={{color:'white'}}>☢️ DATABASE NUCLEAR RESET</h2>
+              <button className="um-modal-close" style={{color:'white'}} onClick={() => setShowNuclearModal(false)}>&times;</button>
+            </div>
+            <div style={{padding: '28px 28px 8px', textAlign:'center'}}>
+              <div style={{fontSize:'3.5rem', marginBottom:'12px'}}>☢️</div>
+              <p style={{fontSize:'1.1rem', color:'#1e293b', marginBottom:'16px'}}>
+                You are about to execute a <strong style={{color:'#dc2626'}}>Nuclear Reset</strong> on the entire platform.
+              </p>
+              <div style={{
+                background:'#1e293b', border:'1px solid #0f172a', color: '#f8fafc',
+                borderRadius:'8px', padding:'16px', margin:'16px 0', textAlign: 'left',
+                fontFamily: 'monospace', fontSize: '0.85rem'
+              }}>
+                <ul style={{margin: 0, paddingLeft: '20px'}}>
+                  <li style={{marginBottom: '8px'}}>Drops ALL Data (Courses, Batches, Attendance, etc.)</li>
+                  <li style={{marginBottom: '8px'}}>Deletes ALL Users except SUPERADMIN</li>
+                  <li style={{marginBottom: '8px'}}>Resets all ID Sequences to 0</li>
+                  <li>Keeps configuration & permissions intact</li>
+                </ul>
+              </div>
+              <p style={{fontSize:'0.9rem', color:'#ef4444', fontWeight:'700'}}>
+                ☢️ THIS WILL WIPE THE ENTIRE PLATFORM! ☢️
+              </p>
+            </div>
+            <div className="um-modal-footer" style={{padding:'16px 28px 24px'}}>
+              <button
+                className="um-modal-cancel"
+                onClick={() => setShowNuclearModal(false)}
+                disabled={isNuking}
+              >
+                Abort
+              </button>
+              <button
+                className="um-modal-save"
+                style={{background:'#000000', border:'2px solid #dc2626', color: '#ef4444', fontWeight: 'bold'}}
+                onClick={handleNuclearReset}
+                disabled={isNuking}
+              >
+                {isNuking ? '☢️ NUKING DB...' : '☢️ YES, RESET EVERYTHING'}
+              </button>
+            </div>
           </div>
         </div>
       )}

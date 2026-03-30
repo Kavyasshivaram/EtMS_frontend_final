@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api/axiosConfig';
 import './LeadForm.css';
 
 const LeadForm = () => {
@@ -36,7 +36,7 @@ const LeadForm = () => {
         setStatus({ type: '', msg: '' });
 
         try {
-            const response = await axios.post('http://localhost:8080/api/v1/queries/submit', formData);
+            const response = await api.post('/v1/queries/submit', formData);
             setStatus({ type: 'success', msg: response.data.message });
             setFormData({ name: '', email: '', phone: '', course: '' });
         } catch (error) {

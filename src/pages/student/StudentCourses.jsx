@@ -99,6 +99,20 @@ function StudentCourses() {
     return `${h}:${minute} ${ampm}`;
   };
 
+  const handleViewSyllabus = async (courseId) => {
+    try {
+      const response = await api.get(`/student/courses/download/${courseId}?mode=view`, {
+        responseType: 'blob'
+      });
+      const file = new Blob([response.data], { type: 'application/pdf' });
+      const fileURL = URL.createObjectURL(file);
+      window.open(fileURL, '_blank');
+    } catch (err) {
+      console.error("Error viewing syllabus", err);
+      setError("Failed to open syllabus. Please try again.");
+    }
+  };
+
   if (loading) return (
     <div className="sc-loading">
       <div className="sc-spinner">
@@ -210,12 +224,7 @@ function StudentCourses() {
                     {course.syllabusFileName ? (
                       <button
                         className="sc-btn sc-btn-outline"
-                        onClick={() =>
-                          window.open(
-                            `${api.defaults.baseURL}/student/courses/download/${course.id}`,
-                            "_blank"
-                          )
-                        }
+                        onClick={() => handleViewSyllabus(course.id)}
                       >
                         <FaDownload /> Download Syllabus
                       </button>

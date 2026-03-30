@@ -117,18 +117,7 @@ export default function StudentAttendance() {
     setSummary({ totalClasses: total, presentCount: present, absentCount: absent, leaveCount: leave, attendancePercentage: pct });
   };
 
-  const handleDownload = async () => {
-    try {
-      let url = `/student/attendance/download/${studentId}?batchId=${selectedBatch}`;
-      if (filterMode === FILTER_MODES.SINGLE && singleDate) url += `&from=${singleDate}&to=${singleDate}`;
-      else if (filterMode === FILTER_MODES.RANGE && fromDate && toDate) url += `&from=${fromDate}&to=${toDate}`;
-      const res = await api.get(url, { headers: { Authorization: `Bearer ${token}` }, withCredentials: true, responseType: "blob" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(new Blob([res.data], { type: "text/csv" }));
-      link.download = "attendance_report.csv";
-      link.click();
-    } catch (err) { console.error("Download error:", err); }
-  };
+
 
   const filtered = records.filter(r => {
     const topic = (r.topic || "Regular Session").toLowerCase();
@@ -169,9 +158,7 @@ export default function StudentAttendance() {
               </div>
             </div>
           </div>
-          <button className="sa-dl-report-btn" onClick={handleDownload}>
-            <FaDownload /> Download Report
-          </button>
+
         </header>
 
         {/* ── METRICS ROW ── */}
@@ -278,7 +265,7 @@ export default function StudentAttendance() {
           </div>
 
           <div className="sa-table-scroller">
-            <table className="sa-table-main">
+            <table className="sa-table-main responsive-card-table">
               <thead>
                 <tr>
                   <th width="80">#</th>
@@ -296,13 +283,13 @@ export default function StudentAttendance() {
                 ) : (
                   currentRecords.map((r, i) => (
                     <tr key={i}>
-                      <td className="sa-col-mute">{(currentPage-1)*PAGE_SIZE + i + 1}</td>
-                      <td className="sa-col-date">
+                      <td className="sa-col-mute" data-label="ID">{(currentPage-1)*PAGE_SIZE + i + 1}</td>
+                      <td className="sa-col-date" data-label="Date">
                         <FaCalendarAlt /> {formatDisplayDate(r.attendance_date)}
                       </td>
-                      <td className="sa-col-mute">{formatDayName(r.attendance_date)}</td>
-                      <td className="sa-col-topic">{r.topic || "Regular Session"}</td>
-                      <td className="center">
+                      <td className="sa-col-mute" data-label="Day">{formatDayName(r.attendance_date)}</td>
+                      <td className="sa-col-topic" data-label="Topic">{r.topic || "Regular Session"}</td>
+                      <td className="center" data-label="Status">
                         <span className={`sa-status-tag sa-status-tag--${r.status?.toLowerCase()}`}>
                           {r.status === "PRESENT" && <FaCheckCircle className="sa-check-ic" />}
                           {r.status}

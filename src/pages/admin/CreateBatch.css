@@ -187,7 +187,8 @@
   border: 1.5px solid var(--cb-border);
   border-radius: 9px; background: #f8fafc;
   font-size: 0.875rem; font-family: inherit; color: var(--cb-text);
-  transition: all 0.2s; outline: none; appearance: none;
+  transition: all 0.2s; outline: none; 
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
 }
 
 /* Non-date inputs get room for the custom icon */
@@ -285,7 +286,36 @@
 }
 
 .cb-directory__header-top {
-  display: flex; align-items: flex-start; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem;
+}
+
+.cb-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cb-add-new-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8.5px 16px;
+  background: linear-gradient(135deg, var(--cb-navy), var(--cb-navy-md));
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(15,23,42,0.15);
+}
+.cb-add-new-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15,23,42,0.2);
 }
 
 .cb-directory__title { font-size: 1.05rem; font-weight: 800; color: var(--cb-navy); }
@@ -560,6 +590,9 @@
 .cb-act-btn--view:hover   { background: var(--cb-purple); color: #fff; border-color: transparent; }
 .cb-act-btn--delete { background: var(--cb-red-lt);   color: var(--cb-red);   border-color: #fca5a5; }
 .cb-act-btn--delete:hover { background: var(--cb-red);   color: #fff; border-color: transparent; }
+
+.cb-act-btn--activate { background: var(--cb-green-lt); color: var(--cb-green); border-color: #bbf7d0; }
+.cb-act-btn--activate:hover { background: var(--cb-green); color: #fff; border-color: transparent; }
 
 /* ════════════════════════════════════════════
    PAGINATION (shared — used in header row)

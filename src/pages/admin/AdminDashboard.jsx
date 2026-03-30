@@ -2,10 +2,11 @@ import {
   FaBook, FaChalkboardTeacher, FaUsers, FaBell,
   FaLayerGroup, FaCheckCircle, FaTimesCircle,
   FaUserSlash, FaUserCheck, FaUserGraduate, FaUserTie,
-  FaSync
+  FaSync, FaCalendarTimes
 } from "react-icons/fa";
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import api from "../../api/axiosConfig";
 import "./AdminDashboard.css";
 
@@ -51,27 +52,48 @@ function RoleTag({ role }) {
 }
 
 function ActionBtns({ user, onApprove, onReject, onDeactivate, onActivate }) {
+  const isPending = user.status === "PENDING" || user.approvalStatus === "PENDING";
+  const isStudent = user.role?.roleName === "STUDENT";
+
   return (
     <div className="adm-action-group">
-      {user.status === "PENDING" && (
+      {isPending && (
         <>
-          <button className="adm-btn adm-btn--approve" onClick={() => onApprove(user.id)}>
-            <FaCheckCircle /> Approve
-          </button>
-          <button className="adm-btn adm-btn--reject" onClick={() => onReject(user.id)}>
-            <FaTimesCircle /> Reject
-          </button>
+          {isStudent ? (
+            <>
+              <button className="adm-btn adm-btn--approve" onClick={() => onApprove(user.id)}>
+                <FaCheckCircle /> Approve
+              </button>
+              <button className="adm-btn adm-btn--reject" onClick={() => onReject(user.id)}>
+                <FaTimesCircle /> Reject
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="adm-btn adm-btn--locked" title="Super Admin approval required for this role">
+                🔒 Super Admin Review
+              </span>
+              <button className="adm-btn adm-btn--locked" style={{opacity: 0.5}} disabled>
+                <FaTimesCircle /> Reject Restricted
+              </button>
+            </>
+          )}
         </>
       )}
-      {user.status === "ACTIVE" && (
+      {!isPending && isStudent && user.status === "ACTIVE" && (
         <button className="adm-btn adm-btn--deactivate" onClick={() => onDeactivate(user.id)}>
           <FaUserSlash /> Deactivate
         </button>
       )}
-      {(user.status === "INACTIVE" || user.status === "REJECTED") && (
+      {!isPending && isStudent && (user.status === "INACTIVE" || user.status === "REJECTED") && (
         <button className="adm-btn adm-btn--activate" onClick={() => onActivate(user.id)}>
           <FaUserCheck /> Activate
         </button>
+      )}
+      {!isPending && !isStudent && (
+        <span className="adm-btn adm-btn--locked" style={{fontStyle: 'normal'}} title="Staff lifecycle is managed exclusively by Super Admin">
+          🔒 Super Admin Managed
+        </span>
       )}
     </div>
   );
@@ -159,6 +181,11 @@ function NotifDropdown({ btnRef, pendingUsers, onViewAll }) {
               <div className="adm-notif-item__role">
                 {u.role?.roleName} · {u.email}
               </div>
+              {u.role?.roleName !== "STUDENT" && (
+                <div className="adm-notif-item__alert" style={{color: '#f97316', fontSize: '10px', marginTop: '2px', fontWeight: '600'}}>
+                  (Pending Super Admin Approval)
+                </div>
+              )}
             </div>
           </div>
         )) : (
@@ -237,36 +264,45 @@ function AdminDashboard() {
   const fetchAllUsers = async () => {
     setLoading(true);
     try {
-      const [sRes, tRes] = await Promise.all([
-        api.get("/admin/all-users"),
-        api.get("/admin/all-trainers"),
-      ]);
-      setUsers([...(sRes.data || []), ...(tRes.data || [])]);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+      // ✅ SINGLE SOURCE OF TRUTH: '/admin/all-users' already returns Students, Trainers, Marketers & Counselors
+      const res = await api.get("/admin/all-users");
+      const list = res.data || [];
+      // ✅ EXCLUDE SUPERADMIN FROM VIEW
+      setUsers(list.filter(u => u.role?.roleName !== "SUPERADMIN"));
+    } catch (err) { 
+      console.error("Dashboard reload failed:", err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   useEffect(() => { fetchDashboardData(); fetchAllUsers(); }, []);
 
-  const approveUser    = async (id) => { await api.put(`/admin/approve-user/${id}`);    fetchAllUsers(); fetchDashboardData(); };
-  const rejectUser     = async (id) => { await api.put(`/admin/reject-user/${id}`);     fetchAllUsers(); };
-  const deactivateUser = async (id) => { await api.put(`/admin/deactivate-user/${id}`); fetchAllUsers(); };
-  const reactivateUser = async (id) => { await api.put(`/admin/approve-user/${id}`);    fetchAllUsers(); fetchDashboardData(); };
+  const approveUser    = async (id) => { 
+    let overrideId = window.prompt("To auto-generate ID, leave blank. To manually assign an ID, enter it below:");
+    if (overrideId === null) return; // Cancelled
+    await api.patch(`/admin/users/approve/${id}`, { generatedId: overrideId });
+    fetchAllUsers(); fetchDashboardData(); 
+  };
+  const rejectUser     = async (id) => { await api.patch(`/admin/users/reject/${id}`);     fetchAllUsers(); };
+  const deactivateUser = async (id) => { await api.patch(`/admin/users/${id}/status`); fetchAllUsers(); };
+  const reactivateUser = async (id) => { await api.patch(`/admin/users/${id}/status`); fetchAllUsers(); fetchDashboardData(); };
   const handleRefresh  = () => { fetchDashboardData(); fetchAllUsers(); };
 
-  const pendingUsers  = users.filter(u => u.status === "PENDING");
+  const pendingUsers  = users.filter(u => u.status === "PENDING" || u.approvalStatus === "PENDING");
   const pendingCount  = pendingUsers.length;
   const studentsCount = users.filter(u => u.role?.roleName === "STUDENT").length;
   const trainersCount = users.filter(u => u.role?.roleName === "TRAINER").length;
+  const marketersCount = users.filter(u => u.role?.roleName === "MARKETER").length;
+  const counselorsCount = users.filter(u => u.role?.roleName === "COUNSELOR").length;
   const activeCount   = users.filter(u => u.status === "ACTIVE").length;
 
-  // ── CHANGED: only STUDENT role users appear in the approval section ──
+  // ── VISIBILITY: Admin can see all, but can only approve STUDENT ──
   const approvalList = users
     .filter(u => {
-      const isStudent = u.role?.roleName === "STUDENT";
       const t = approvalSearch.toLowerCase();
       const matchSearch = !t || u.name?.toLowerCase().includes(t) || u.email?.toLowerCase().includes(t);
-      return isStudent && matchSearch;
+      return matchSearch;
     })
     .sort((a, b) => {
       if (a.status==="PENDING" && b.status!=="PENDING") return -1;
@@ -300,6 +336,8 @@ function AdminDashboard() {
     { label:"Total Trainers", val:data.totalTrainers, icon:<FaChalkboardTeacher />, cls:"adm-sc--purple", delay:"0.10s" },
     { label:"Total Students", val:data.totalStudents, icon:<FaUsers />,              cls:"adm-sc--green",  delay:"0.15s" },
     { label:"Active Batches", val:data.activeBatches, icon:<FaLayerGroup />,         cls:"adm-sc--amber",  delay:"0.20s" },
+    { label:"Pending Approvals", val:data.pendingApprovals, icon:<FaUserCheck />,    cls:"adm-sc--amber",  delay:"0.25s" },
+    { label:"Student Leaves", val: "Manage", icon:<FaCalendarTimes />, onClick: () => navigate("/admin/leave"), cls:"adm-sc--blue", delay:"0.30s" },
   ];
 
   return (
@@ -362,7 +400,7 @@ function AdminDashboard() {
         {/* Stat pills */}
         <div className="adm-hero__stats">
           {STAT_CARDS.map((c, i) => (
-            <div key={i} className={`adm-stat-pill ${c.cls}`} style={{ animationDelay: c.delay }}>
+            <div key={i} className={`adm-stat-pill ${c.cls}`} style={{ animationDelay: c.delay, cursor: c.onClick ? 'pointer' : 'default' }} onClick={c.onClick}>
               <div className="adm-stat-pill__icon">{c.icon}</div>
               <div className="adm-stat-pill__body">
                 <span className="adm-stat-pill__val">{c.val}</span>
@@ -431,14 +469,7 @@ function AdminDashboard() {
             onChange={setApprovalPage} total={approvalList.length} pageSize={PAGE_SIZE_APPROVAL} />
 
           <div className="adm-table-wrap">
-            <table className="adm-table">
-              <colgroup>
-                <col style={{width:"46px"}}/>
-                <col style={{width:"260px"}}/>
-                <col style={{width:"120px"}}/>
-                <col style={{width:"110px"}}/>
-                <col style={{width:"200px"}}/>
-              </colgroup>
+            <table className="adm-table responsive-card-table">
               <thead>
                 <tr>
                   <th>#</th>
@@ -464,10 +495,10 @@ function AdminDashboard() {
                   const idx = (approvalPage-1)*PAGE_SIZE_APPROVAL + i;
                   return (
                     <tr key={u.id} className={u.status==="PENDING" ? "adm-row--pending" : ""}>
-                      <td className="adm-td adm-td--num">
+                      <td className="adm-td adm-td--num" data-label="#">
                         <span className="adm-rnum">{idx+1}</span>
                       </td>
-                      <td className="adm-td">
+                      <td className="adm-td" data-label="User Details">
                         <div className="adm-user-cell">
                           <Avatar name={u.name} idx={idx} />
                           <div className="adm-user-cell__info">
@@ -478,9 +509,9 @@ function AdminDashboard() {
                           </div>
                         </div>
                       </td>
-                      <td className="adm-td"><RoleTag role={u.role?.roleName} /></td>
-                      <td className="adm-td"><StatusBadge status={u.status} /></td>
-                      <td className="adm-td adm-td--actions">
+                      <td className="adm-td" data-label="Role"><RoleTag role={u.role?.roleName} /></td>
+                      <td className="adm-td" data-label="Status"><StatusBadge status={u.status} /></td>
+                      <td className="adm-td adm-td--actions" data-label="Actions">
                         <ActionBtns user={u}
                           onApprove={approveUser} onReject={rejectUser}
                           onDeactivate={deactivateUser} onActivate={reactivateUser} />
@@ -507,14 +538,20 @@ function AdminDashboard() {
 
             <div className="adm-filters-row">
               <div className="adm-filter-tabs">
-                {["ALL","STUDENT","TRAINER"].map(r => (
+                {["ALL","STUDENT","TRAINER", "MARKETER", "COUNSELOR"].map(r => (
                   <button key={r}
                     className={`adm-ftab ${roleFilter===r ? "adm-ftab--on" : ""}`}
-                    onClick={() => setRoleFilter(r)}
+                    onClick={() => {
+                      setRoleFilter(r);
+                      setUserSearch("");
+                      setUserPage(1);
+                    }}
                   >
-                    {r==="ALL"     ? `All (${users.length})`
-                    :r==="STUDENT" ? `Students (${studentsCount})`
-                    :               `Trainers (${trainersCount})`}
+                    {r==="ALL"       ? `All (${users.length})`
+                    :r==="STUDENT"   ? `Students (${studentsCount})`
+                    :r==="TRAINER"   ? `Trainers (${trainersCount})`
+                    :r==="MARKETER"  ? `Marketers (${marketersCount})`
+                    :                 `Counselors (${counselorsCount})`}
                   </button>
                 ))}
               </div>
@@ -548,16 +585,7 @@ function AdminDashboard() {
             onChange={setUserPage} total={allUsersList.length} pageSize={PAGE_SIZE_USERS} />
 
           <div className="adm-table-wrap">
-            <table className="adm-table">
-              <colgroup>
-                <col style={{width:"46px"}}/>
-                <col style={{width:"200px"}}/>
-                <col style={{width:"200px"}}/>
-                <col style={{width:"130px"}}/>
-                {showRoleColumn && <col style={{width:"110px"}}/>}
-                <col style={{width:"110px"}}/>
-                <col style={{width:"200px"}}/>
-              </colgroup>
+            <table className="adm-table responsive-card-table">
               <thead>
                 <tr>
                   <th>#</th>
@@ -578,23 +606,32 @@ function AdminDashboard() {
                   <tr><td colSpan={showRoleColumn ? 7 : 6} className="adm-td-state">
                     <div className="adm-empty">
                       <span className="adm-empty__ico">🔎</span>
-                      <p>No users match the current filters.</p>
+                      <p>No matches found in the <strong>{roleFilter === 'ALL' ? 'Registry' : roleFilter + 's'}</strong> list.</p>
+                      {userSearch && (
+                        <button 
+                          className="adm-btn adm-btn--activate" 
+                          onClick={() => { setUserSearch(""); setUserPage(1); }}
+                          style={{marginTop: '10px'}}
+                        >
+                          Clear Search
+                        </button>
+                      )}
                     </div>
                   </td></tr>
                 ) : userPaged.map((u, i) => {
                   const idx = (userPage-1)*PAGE_SIZE_USERS + i;
                   return (
                     <tr key={u.id}>
-                      <td className="adm-td adm-td--num">
+                      <td className="adm-td adm-td--num" data-label="#">
                         <span className="adm-rnum">{idx+1}</span>
                       </td>
-                      <td className="adm-td">
+                      <td className="adm-td" data-label="Name">
                         <div className="adm-user-cell">
                           <Avatar name={u.name} idx={idx} />
                           <span className="adm-user-cell__name">{u.name}</span>
                         </div>
                       </td>
-                      <td className="adm-td">
+                      <td className="adm-td" data-label="Email">
                         <div className="adm-link-group" style={{display: 'flex', flexDirection: 'column'}}>
                           {(u.portalId || u.studentId) && (
                             <span className="adm-id-text" style={{fontSize: '11px', color: '#64748b'}}>
@@ -604,12 +641,12 @@ function AdminDashboard() {
                           <a href={`mailto:${u.email}`} className="adm-link">{u.email}</a>
                         </div>
                       </td>
-                      <td className="adm-td adm-td--phone">{u.phone || "—"}</td>
+                      <td className="adm-td adm-td--phone" data-label="Phone">{u.phone || "—"}</td>
                       {showRoleColumn && (
-                        <td className="adm-td"><RoleTag role={u.role?.roleName} /></td>
+                        <td className="adm-td" data-label="Role"><RoleTag role={u.role?.roleName} /></td>
                       )}
-                      <td className="adm-td"><StatusBadge status={u.status} /></td>
-                      <td className="adm-td adm-td--actions">
+                      <td className="adm-td" data-label="Status"><StatusBadge status={u.status} /></td>
+                      <td className="adm-td adm-td--actions" data-label="Actions">
                         <ActionBtns user={u}
                           onApprove={approveUser} onReject={rejectUser}
                           onDeactivate={deactivateUser} onActivate={reactivateUser} />

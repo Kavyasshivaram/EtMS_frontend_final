@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import api from "../../api/axiosConfig";
+import api, { handleDownload } from "../../api/axiosConfig";
+
 import "./CreateCourse.css";
 
 const API_BASE = "/admin";
@@ -9,7 +10,10 @@ function CreateCourse() {
   const [courseName, setCourseName] = useState("");
   const [duration, setDuration]     = useState("");
   const [description, setDescription] = useState("");
-  const [file, setFile]             = useState(null);
+  const [courseCode, setCourseCode]   = useState("");
+  const [category, setCategory]       = useState("");
+  const [file, setFile]               = useState(null);
+  const [shortcut, setShortcut]       = useState("");
   const fileInputRef                = useRef(null);
 
   const [courses,         setCourses]         = useState([]);
@@ -44,8 +48,9 @@ function CreateCourse() {
   };
 
   const resetForm = () => {
-    setCourseName(""); setDuration(""); setDescription("");
-    setFile(null); setEditingId(null); setError("");
+    setCourseName(""); setDuration(""); setDescription(""); 
+    setCourseCode(""); setCategory("");
+    setShortcut(""); setFile(null); setEditingId(null); setError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -60,6 +65,9 @@ function CreateCourse() {
       formData.append("courseName",   courseName);
       formData.append("duration",     duration);
       formData.append("description",  description);
+      formData.append("courseCode",   courseCode);
+      formData.append("category",     category);
+      formData.append("shortcut",     shortcut);
       if (file) formData.append("file", file);
       const config = { headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" } };
       if (editingId) {
@@ -81,6 +89,9 @@ function CreateCourse() {
     setCourseName(course.courseName || "");
     setDuration(course.duration || "");
     setDescription(course.description || "");
+    setCourseCode(course.courseCode || "");
+    setCategory(course.category || "");
+    setShortcut(course.shortcut || "");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -223,6 +234,53 @@ function CreateCourse() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Course Code */}
+            <div className="cc-field">
+              <label className="cc-label">
+                <span className="cc-label__icon">🔢</span>
+                Course Code
+              </label>
+              <input
+                className="cc-input"
+                type="text"
+                value={courseCode}
+                onChange={e => setCourseCode(e.target.value)}
+                placeholder="e.g. CS101"
+              />
+            </div>
+
+            {/* Category */}
+            <div className="cc-field">
+              <label className="cc-label">
+                <span className="cc-label__icon">📁</span>
+                Category
+              </label>
+              <input
+                className="cc-input"
+                type="text"
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                placeholder="e.g. Programming, Design"
+              />
+            </div>
+
+            {/* Shortcut */}
+            <div className="cc-field">
+              <label className="cc-label">
+                <span className="cc-label__icon">🆔</span>
+                Course Shortcut (for ID Gen)
+              </label>
+              <input
+                className="cc-input"
+                type="text"
+                value={shortcut}
+                onChange={e => setShortcut(e.target.value)}
+                placeholder="e.g. FSJ, FSP"
+                maxLength="5"
+              />
+              <span className="cc-hint">Used in Student IDs (e.g., 202410<strong>FSJ</strong>00001)</span>
             </div>
 
             {/* Description */}
@@ -425,9 +483,9 @@ function CreateCourse() {
                       <button
                         className="cc-download-btn"
                         onClick={() =>
-                          window.open(
-                            `${api.defaults.baseURL}${API_BASE}/courses/download/${course.id}`,
-                            "_blank"
+                          handleDownload(
+                            `${API_BASE}/courses/${course.id}/syllabus?mode=download`,
+                            course.syllabusFileName
                           )
                         }
                       >

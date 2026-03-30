@@ -151,7 +151,7 @@ function StudentDashboard() {
 
   /* ── Stats ── */
   const [stats, setStats] = useState({
-    totalCourses: 0, attendance: 0, pendingAssignments: 0, progress: 0,
+    totalCourses: 0, attendance: 0, progress: 0,
   });
 
   /* ── Batches: ALL batches student belongs to ── */
@@ -217,7 +217,6 @@ function StudentDashboard() {
         setStats({
           totalCourses:       res.data.totalCourses       ?? 0,
           attendance:         res.data.attendance         ?? 0,
-          pendingAssignments: res.data.pendingAssignments ?? 0,
           progress:           res.data.progress           ?? 0,
         });
       })
@@ -584,7 +583,6 @@ function StudentDashboard() {
       <div className="sd-stats">
         <StatCard value={stats.totalCourses}       label="Enrolled Courses" icon="📚" color="blue" />
         <StatCard value={stats.attendance}         label="Attendance Rate"  icon="✅" color="green"  suffix="%" />
-        <StatCard value={stats.pendingAssignments} label="Pending Tasks"    icon="⏳" color="amber" />
         <StatCard value={stats.progress}           label="Overall Progress" icon="🚀" color="indigo" suffix="%" />
       </div>
 
@@ -617,14 +615,14 @@ function StudentDashboard() {
                 pushActivity("📊","Opened Attendance","green");
                 navigate("/student/attendance");
               }}><span>📊</span><span>My Attendance</span></button>
-              <button className="sd-action-btn sd-action-btn--amber" onClick={() => {
-                pushActivity("📝","Opened Assignments","amber");
-                navigate("/student/assignments");
-              }}><span>📝</span><span>Assignments</span></button>
               <button className="sd-action-btn sd-action-btn--purple" onClick={() => {
                 pushActivity("🏆","Checked Performance","purple");
                 navigate("/student/performance");
               }}><span>🏆</span><span>Performance</span></button>
+              <button className="sd-action-btn sd-action-btn--orange" onClick={() => {
+                pushActivity("⚡","Opened Punch In/Out","amber");
+                navigate("/student/time-tracking");
+              }}><span>⚡</span><span>Punch In / Out</span></button>
             </div>
           </div>
 

@@ -300,4 +300,14 @@
   .sa-wrapper { grid-template-columns: 1fr; }
   .sa-side-panel { display: none; }
   .ca-form-grid, .ca-perm-grid { grid-template-columns: 1fr; }
+  .ca-main-panel { padding: 1.5rem; }
+  .ca-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .ca-btn-primary { width: 100%; justify-content: center; }
+}
+
+@media (max-width: 480px) {
+  .ca-main-panel { padding: 1rem; }
+  .ca-modal { padding: 1.5rem; border-radius: 16px; width: 95%; }
+  .ca-modal-header h3 { font-size: 1.25rem; }
+  .ca-table td { padding: 1rem; }
 }

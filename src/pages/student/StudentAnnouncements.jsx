@@ -1,45 +1,51 @@
+import { useState, useEffect } from "react";
+import api from "../../api/axiosConfig";
 import "./StudentModule.css";
 
 function StudentAnnouncements() {
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
+
+  const fetchAnnouncements = async () => {
+    try {
+      const res = await api.get("/announcements");
+      setAnnouncements(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch announcements", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <div className="module-container"><p>Loading announcements...</p></div>;
+
   return (
     <div className="module-container">
-      <div className="module-header">
-        <h2>📢 Announcements</h2>
-        <span className="module-subtitle">Latest Updates & Notices</span>
-      </div>
+      <h2>Announcements</h2>
 
-      {/* Job Posting */}
-      <div className="announcement-card">
-        <div className="announcement-badge job">New</div>
-        <h3>💼 Job Opportunity Posted</h3>
-        <p>
-          A new Software Developer internship has been posted on the portal.
-          Interested students can apply before <strong>28th March</strong>.
-        </p>
-        <span className="announcement-date">Posted Today</span>
-      </div>
-
-      {/* Tomorrow Holiday */}
-      <div className="announcement-card">
-        <div className="announcement-badge holiday">Holiday</div>
-        <h3>🎉 Tomorrow is a Holiday</h3>
-        <p>
-          The institution will remain closed tomorrow due to a public holiday.
-          Regular classes will resume the following day.
-        </p>
-        <span className="announcement-date">Effective: Tomorrow</span>
-      </div>
-
-      {/* Townhall Meeting */}
-      <div className="announcement-card">
-        <div className="announcement-badge meeting">Meeting</div>
-        <h3>🌙 Saturday Night Townhall</h3>
-        <p>
-          A townhall meeting will be conducted this Saturday at 
-          <strong> 11:00 PM </strong> in Zoom meeting.
-          All students are encouraged to attend.
-        </p>
-        <span className="announcement-date">Saturday • 11:00 PM</span>
+      <div className="announcement-list">
+        {announcements.length > 0 ? (
+          announcements.map((ann) => (
+            <div key={ann.id} className="announcement-card">
+              <div className="ann-header">
+                <h3>{ann.title}</h3>
+                <span className="ann-date">
+                  {new Date(ann.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <p className="ann-content">{ann.content}</p>
+              <div className="ann-footer">
+                <span className="ann-author">Posted by: {ann.createdByName || "System"}</span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p style={{textAlign: 'center', padding: '2rem', color: '#64748b'}}>No new announcements at the moment. Check back later!</p>
+        )}
       </div>
     </div>
   );

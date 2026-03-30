@@ -422,14 +422,14 @@ ul { list-style: none; }
 .sa-hero {
   background: linear-gradient(125deg, #1a3499 0%, #2347c5 42%, #3d6ee8 75%, #4f84ff 100%);
   border-radius: 20px;
-  padding: 2.25rem 2.5rem;
+  padding: 3rem 2.5rem; /* Increased padding */
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 2rem;
   position: relative;
   overflow: hidden;
-  min-height: 170px;
+  min-height: 200px; /* Increased min-height */
   animation: saFadeDown 0.5s ease-out both;
 }
 
@@ -459,16 +459,18 @@ ul { list-style: none; }
 
 .sa-hero-heading {
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: 2.3rem; /* Slightly larger */
   font-weight: 800;
-  color: #fff;
-  line-height: 1.1;
+  color: #ffffff !important; /* Force white to override common.css */
+  line-height: 1.2;
+  margin-bottom: 0.5rem;
 }
 
 .sa-hero-desc {
-  font-size: 0.875rem;
-  color: rgba(255,255,255,0.72);
+  font-size: 1rem;
+  color: rgba(255,255,255,0.85) !important;
   font-weight: 400;
+  max-width: 600px;
 }
 
 .sa-hero-chips {

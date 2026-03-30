@@ -85,11 +85,11 @@ function CreateAdmin() {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to revoke this admin's access?")) return;
+  const handleToggleStatus = async (id) => {
+    if (!window.confirm("Are you sure you want to toggle this admin's access?")) return;
 
     try {
-      await api.delete(`/superadmin/delete-admin/${id}`);
+      await api.patch(`/superadmin/admins/${id}/status`);
       fetchAdmins();
     } catch (err) {
       console.error(err);
@@ -101,9 +101,9 @@ function CreateAdmin() {
 
     try {
       if (editingAdmin) {
-        await api.put(`/superadmin/update-admin/${editingAdmin.id}`, formData);
+        await api.patch(`/superadmin/admins/${editingAdmin.id}`, formData);
       } else {
-        await api.post("/superadmin/create-admin", formData);
+        await api.post("/superadmin/admins", formData);
       }
       fetchAdmins();
       setShowModal(false);
@@ -158,7 +158,7 @@ function CreateAdmin() {
                 <p>Syncing encrypted registry...</p>
               </div>
             ) : (
-              <table className="ca-table">
+              <table className="ca-table responsive-card-table">
                 <thead>
                   <tr>
                     <th>Administrator</th>
@@ -170,7 +170,7 @@ function CreateAdmin() {
                 <tbody>
                   {admins.map((admin) => (
                     <tr key={admin.id}>
-                      <td>
+                      <td data-label="Administrator">
                         <div className="ca-user-cell">
                           <div className="ca-avatar">{admin.name.charAt(0)}</div>
                           <div className="ca-user-info">
@@ -179,22 +179,22 @@ function CreateAdmin() {
                           </div>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Role Alias">
                         <div className="ca-role-pill">
                           <FaUserShield /> {admin.role?.roleName}
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <span className={`ca-status-dot ${admin.status === 'ACTIVE' ? 'active' : 'inactive'}`}>
                           {admin.status}
                         </span>
                       </td>
-                      <td className="ca-actions">
+                      <td className="ca-actions" data-label="Actions">
                         <button className="ca-action-btn edit" onClick={() => handleEdit(admin)}>
                           <FaEdit />
                         </button>
-                        <button className="ca-action-btn delete" onClick={() => handleDelete(admin.id)}>
-                          <FaTrash />
+                        <button className="ca-action-btn delete" onClick={() => handleToggleStatus(admin.id)} title="Toggle Status">
+                          <FaLock />
                         </button>
                       </td>
                     </tr>
